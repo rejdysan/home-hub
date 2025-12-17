@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home Hub - Live Dashboard</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; --danger: #ef4444; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+
+        h2 { border-bottom: 1px solid #334155; padding-bottom: 8px; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; margin: 30px 0 15px 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+
+        /* Card Styling */
+        .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+        .value { font-size: 2.5rem; font-weight: 800; color: var(--accent); margin: 5px 0; }
+        .unit { font-size: 1rem; color: #64748b; font-weight: 400; }
+
+        /* System Card Specifics */
+        .sys-detail { font-size: 0.8rem; margin: 8px 0; color: #cbd5e1; }
+        .progress-bg { background: #334155; height: 6px; border-radius: 3px; overflow: hidden; }
+        .progress-fill { background: var(--accent); height: 100%; transition: width 0.6s ease-out; }
+        .warning-fill { background: var(--danger) !important; }
+
+        /* Reconnection Overlay */
+        #status-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.9); display: none;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .spinner { width: 30px; height: 30px; border: 3px solid #334155; border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="status-overlay">
+        <div class="spinner"></div>
+        <p style="color: var(--danger); margin-top: 15px;">Connecting to Hub...</p>
+    </div>
+
+    <h2>🌡️ Environment Sensors</h2>
+    <div id="temp-grid" class="grid"></div>
+
+    <h2>🖥️ System Performance (Live)</h2>
+    <div id="sys-grid" class="grid"></div>
+
+    <script>
+        const tempGrid = document.getElementById('temp-grid');
+        const sysGrid = document.getElementById('sys-grid');
+        const overlay = document.getElementById('status-overlay');
+
+        function renderSystemCard(title, pct, detail, isSpeed = false) {
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            const barHtml = isSpeed ? '' : `
+                <div class="progress-bg">
+                    <div class="progress-fill ${pct > 85 ? 'warning-fill' : ''}" style="width: ${Math.min(pct, 100)}%"></div>
+                </div>
+            `;
+
+            card.innerHTML = `
+                <div class="label">${title}</div>
+                <div class="sys-detail">${detail}</div>
+                ${barHtml}
+            `;
+            sysGrid.appendChild(card);
+        }
+
+        function connect() {
+            const ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                overlay.style.display = 'none';
+                console.log("✅ Connected");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    const sensors = data.sensors || [];
+                    const sys = data.system || {};
+
+                    // 1. Update Environment
+                    tempGrid.innerHTML = '';
+                    sensors.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.innerHTML = `
+                            <div class="label">${item.sensor} • ${item.prop}</div>
+                            <div class="value">${(item.temp || 0).toFixed(1)}<span class="unit">°C</span></div>
+                        `;
+                        tempGrid.appendChild(div);
+                    });
+
+                    // 2. Update System
+                    sysGrid.innerHTML = '';
+
+                    // CPU
+                    const cpuTemp = sys.cpu_temp ? sys.cpu_temp.toFixed(1) + '°C' : 'N/A';
+                    renderSystemCard("⚡ CPU Usage", sys.cpu || 0, `Load: ${(sys.cpu || 0).toFixed(1)}% | Temp: ${cpuTemp}`);
+
+                    // RAM
+                    renderSystemCard("🧠 Memory", sys.ram_pct || 0, `${sys.ram_used || 0} / ${sys.ram_total || 0} GB Used`);
+
+                    // Disk
+                    renderSystemCard("💾 Storage", sys.disk_pct || 0, `${sys.disk_used || 0} / ${sys.disk_total || 0} GB Used`);
+
+                    // Network
+                    renderSystemCard("🌐 Network", 0, `↓ ${sys.net_recv || 0} KB/s | ↑ ${sys.net_sent || 0} KB/s`, true);
+
+                } catch (e) { console.error("Data Error", e); }
+            };
+
+            ws.onclose = () => {
+                overlay.style.display = 'flex';
+                setTimeout(connect, 3000);
+            };
+        }
+
+        connect();
+    </script>
+</body>
+</html>
