@@ -1,0 +1,23 @@
+[Unit]
+Description=HomeHub Kiosk Backend
+After=network.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/home-hub
+ExecStart=/home/pi/home-hub/venv/bin/python main.py
+# Fallback: If you prefer system Python, use: ExecStart=/usr/bin/python3 main.py
+Restart=always
+RestartSec=10
+# Environment file (optional, if not using .env in WorkingDirectory)
+EnvironmentFile=/home/pi/home-hub/.env
+# Standard output for logs (view with journalctl -u homehub.service)
+StandardOutput=journal
+StandardError=journal
+# Limit journal size to prevent SD card wear
+SyslogIdentifier=homehub
+
+[Install]
+WantedBy=multi-user.target

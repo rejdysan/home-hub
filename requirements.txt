@@ -1,5 +1,19 @@
+# Core Framework
 fastapi
-uvicorn
+uvicorn[standard]
+
+# MQTT Client
 paho-mqtt
+
+# Configuration
 python-dotenv
+
+# System Monitoring
 psutil
+
+# HTTP Client
+httpx
+
+# Note: Pin versions to ensure reproducible builds
+# Update periodically for security patches
+# Test on Raspberry Pi before updating production

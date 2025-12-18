@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Hub Dashboard</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/src/static/css/style.css">
+</head>
+<body>
+
+<div class="main-wrapper">
+
+    <!-- Top Container: 4 items -->
+    <div class="top-container">
+        <div class="rect">
+            <div class="map-tag">
+                <span class="tag-main">Thomayerka Directly</span>
+                <span class="tag-sub" id="update-map1">Updating...</span>
+            </div>
+            <iframe id="map-frame-1"
+                    src="https://www.google.com/maps/embed/v1/directions?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&origin=50.0878433,14.478581&destination=50.0240701,14.4603428&mode=driving"></iframe>
+        </div>
+
+        <div class="rect">
+            <div class="map-tag">
+                <span class="tag-main">Brumlovka & Thomayerka</span>
+                <span class="tag-sub" id="update-map2">Updating...</span>
+            </div>
+            <iframe id="map-frame-2"
+                    src="https://www.google.com/maps/embed/v1/directions?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&origin=50.0878433,14.478581&destination=50.0240701,14.4603428&waypoints=50.0466578,14.4567786&mode=driving"></iframe>
+        </div>
+
+        <div class="rect">
+            <div class="map-tag" style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                <span class="tag-sub" id="update-cal1">Updating...</span>
+            </div>
+            <iframe id="calendar-frame-1"
+                    src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FPrague&showPrint=0&showTitle=0&showNav=0&showTabs=0&showCalendars=0&showTz=0&src=bWljaGFsLnJlamR1Z2FAZ21haWwuY29t&src=ZmFtaWx5MDY4NTQ3NDY3NzcyNzU1ODQ0NDlAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&src=MGFwcXRqZnBrdHJiaHZzYzk2dHI3NGs4ZjhAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&src=MWY0ZjU3MzIwZjNiNTU3MTY0ZTg3NTZiNmIwMGM0ODBkYzlhZTFlMjcxYzQyZDMyNDBiNTc4MjllYTAyMzQ4N0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t&src=enV6YW5ha29uZWNuYTI3QGdtYWlsLmNvbQ&src=c2suY3plY2gjaG9saWRheUBncm91cC52LmNhbGVuZGFyLmdvb2dsZS5jb20&src=c2suc2xvdmFrI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%237986cb&color=%23e4c441&color=%239e69af&color=%23f6bf26&color=%23616161&color=%234285f4&color=%23e67c73"></iframe>
+        </div>
+        <!-- Todoist Lists -->
+        <div class="rect todoist-rect">
+            <div class="todoist-header-wrapper">
+                <h2 class="todoist-main-header">
+                    <i data-lucide="list-checks" size="16"></i> TODOIST
+                </h2>
+                <span class="todoist-update-time" id="update-todoist">Updated: --:--:--</span>
+            </div>
+            <div class="todoist-container">
+                <div class="todo-section">
+                    <div class="todo-section-header">
+                        <h3 class="todo-header" id="todo-header-1">Loading...</h3>
+                        <span class="todo-count" id="todo-count-1">0</span>
+                    </div>
+                    <div class="todo-list" id="todo-list-1">
+                        <div class="todo-loading">Loading tasks...</div>
+                    </div>
+                </div>
+                <div class="todo-section">
+                    <div class="todo-section-header">
+                        <h3 class="todo-header" id="todo-header-2">Loading...</h3>
+                        <span class="todo-count" id="todo-count-2">0</span>
+                    </div>
+                    <div class="todo-list" id="todo-list-2">
+                        <div class="todo-loading">Loading tasks...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Container: 3 items -->
+    <div class="bottom-container">
+        <div class="rect bottom-left">
+            <div class="combo-container">
+                <div class="clock-half">
+                    <div id="clock-time">00:00:00</div>
+                    <div id="clock-date">--</div>
+                    <div id="nameday-info">...</div>
+                </div>
+
+                <div class="system-half">
+                    <div style="grid-column: span 4; display: flex; gap: 15px; justify-content: center; margin-bottom: 5px;">
+                        <div id="health-mqtt"
+                             style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
+                            <span class="status-dot" style="position: static; display: inline-block;"></span> MQTT
+                        </div>
+                        <div id="health-db"
+                             style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
+                            <span class="status-dot" style="position: static; display: inline-block;"></span> DATABASE
+                        </div>
+                        <div id="health-wifi"
+                             style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
+                            <span class="status-dot" style="position: static; display: inline-block;"></span> WIFI
+                        </div>
+                    </div>
+                    <div class="sys-card">
+                        <div class="sys-icon-wrapper"><i data-lucide="cpu" color="#facc15" size="32"></i></div>
+                        <span class="sys-label">CPU</span>
+                        <div class="sys-val cpu-text" id="cpu-pct">0%</div>
+                        <div class="sys-sub" id="cpu-temp">--°C</div>
+                    </div>
+
+                    <div class="sys-card">
+                        <div class="sys-icon-wrapper"><i data-lucide="memory-stick" color="#a855f7" size="32"></i></div>
+                        <span class="sys-label">RAM</span>
+                        <div class="sys-val ram-text" id="ram-pct">0%</div>
+                        <div class="sys-sub" id="ram-detail">-- / --</div>
+                    </div>
+
+                    <div class="sys-card">
+                        <div class="sys-icon-wrapper"><i data-lucide="hard-drive" color="#22c55e" size="32"></i></div>
+                        <span class="sys-label">Disk</span>
+                        <div class="sys-val disk-text" id="disk-pct">0%</div>
+                        <div class="sys-sub" id="disk-detail">-- / --</div>
+                    </div>
+
+                    <div class="sys-card">
+                        <div class="sys-icon-wrapper"><i data-lucide="wifi" color="#3b82f6" size="32"></i></div>
+                        <span class="sys-label">Network</span>
+                        <div class="net-values-container">
+                            <div class="net-value-item">
+                                <span class="net-arrow">↓</span>
+                                <span class="net-number" id="net-down">0</span>
+                            </div>
+                            <div class="net-value-item">
+                                <span class="net-arrow">↑</span>
+                                <span class="net-number" id="net-up">0</span>
+                            </div>
+                        </div>
+                        <div class="sys-sub" id="net-detail">KB/s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rect" id="weather-rect">
+            <div class="weather-panel">
+                <div class="w-section-top">
+                    <div class="w-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:12px">
+                            <i id="main-icon" data-lucide="sun" style="width:50px; height:50px"></i>
+                            <span class="w-temp-main" id="today-temp"
+                                  style="font-size:3.5rem; font-weight:900">--°</span>
+                            <div style="font-size:0.8rem; opacity:0.8">Feels <span id="w-feels">--</span>°</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div id="w-desc" class="w-desc" style="font-weight:900; font-size:1.3rem;">Loading...</div>
+                            <div id="w-updated" style="font-size: 0.6rem; opacity: 0.6; font-weight: 800;">Updated:
+                                --:--
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-label"><i data-lucide="wind" size="14"></i> Wind</span>
+                            <span class="stat-value"><span id="w-wind">--</span> <small
+                                    style="font-size:0.6rem"> km/h</small></span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label"><i data-lucide="droplets" size="14"></i> Humidity</span>
+                            <span class="stat-value"><span id="w-hum">--</span><small
+                                    style="font-size:0.6rem"> %</small></span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label"><i data-lucide="gauge" size="14"></i> Pressure</span>
+                            <span class="stat-value"><span id="w-pres">--</span><small
+                                    style="font-size:0.6rem"> hPa</small></span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label"><i data-lucide="eye" size="14"></i> Visibility</span>
+                            <span class="stat-value"><span id="w-vis">--</span><small
+                                    style="font-size:0.6rem"> km</small></span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label"><i data-lucide="sun" size="14"></i> UV index</span>
+                            <span class="stat-value" id="w-uv">--</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label"><i data-lucide="cloud-sun" size="14"></i> Clouds</span>
+                            <span class="stat-value"><span id="w-cloud">--</span><small
+                                    style="font-size:0.6rem"> %</small></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-section-middle">
+                    <div class="w-forecast-grid" id="forecast-row"></div>
+                </div>
+
+                <div class="w-section-bottom">
+                    <div class="home-grid-layout">
+                        <div class="sensor-card-mini">
+                            <span class="room-label">Bedroom</span>
+                            <div id="status-bedroom" class="status-dot status-offline"></div>
+                            <span class="home-sub" style="margin-top: 15px;">Temperature</span>
+                            <span class="big-val"><span id="home-bedroom">--</span><small class="unit-label"> °</small></span>
+                        </div>
+                        <div class="sensor-card-mini">
+                            <span class="room-label">Livingroom</span>
+                            <div id="status-living" class="status-dot status-offline"></div>
+                            <span class="home-sub" style="margin-top: 15px;">Temperature</span>
+                            <span class="big-val"><span id="home-living">--</span><small
+                                    class="unit-label"> °</small></span>
+                        </div>
+                        <div class="sensor-card-mini">
+                            <span class="room-label">Balcony (outside)</span>
+                            <div id="status-balcony" class="status-dot status-offline"></div>
+                            <div class="balcony-inner-grid" style="margin-top: 10px;">
+                                <div class="balc-item">
+                                    <span class="home-sub">Temperature</span>
+                                    <span class="big-val"><span id="home-balcony-temp">--</span><small
+                                            class="unit-label">°</small></span>
+                                </div>
+                                <div class="balc-item">
+                                    <span class="home-sub">Humidity</span>
+                                    <span class="big-val"><span id="home-balcony-hum">--</span><small
+                                            class="unit-label"> %</small></span>
+                                </div>
+                                <div class="balc-item">
+                                    <span class="home-sub">Pressure</span>
+                                    <span class="big-val"><span id="home-balcony-press">--</span><small
+                                            class="unit-label"> hPa</small></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rect transport-panel">
+            <div class="transport-section">
+                <h3 class="transport-header">
+                    <i data-lucide="map-pin" size="14"></i> Malešická
+                </h3>
+                <div id="bus-list-malesicka" class="bus-list">
+                    <div class="bus-loading">Loading...</div>
+                </div>
+            </div>
+
+            <div class="transport-section">
+                <h3 class="transport-header">
+                    <i data-lucide="map-pin" size="14"></i> Olgy Havlové
+                </h3>
+                <div id="bus-list-olgy" class="bus-list">
+                    <div class="bus-loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Application JavaScript Modules -->
+<script src="/src/static/js/constants.js"></script>
+<script src="/src/static/js/clock.js"></script>
+<script src="/src/static/js/iframe.js"></script>
+<script src="/src/static/js/weather.js"></script>
+<script src="/src/static/js/transport.js"></script>
+<script src="/src/static/js/todoist.js"></script>
+<script src="/src/static/js/updates.js"></script>
+<script src="/src/static/js/websocket.js"></script>
+<script src="/src/static/js/kiosk.js"></script>
+<!-- Main Application Entry Point -->
+<script src="/src/static/js/app.js"></script>
+</body>
+</html>
