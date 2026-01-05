@@ -1,0 +1,909 @@
+:root {
+    --bg: #0b0f1a;
+    --card: #161b2c;
+    --text: #f8fafc;
+    --accent: #38bdf8;
+    --border: #2d3748;
+    --glass: rgba(255, 255, 255, 0.05);
+    --danger: #ef4444;
+    --success: #22c55e;
+    --cpu-color: #facc15; /* Yellow */
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+}
+
+.main-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    padding: 15px;
+    gap: 15px;
+    box-sizing: border-box;
+}
+
+.top-container {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+}
+
+.bottom-container {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.rect {
+    background: var(--card);
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    transition: background 0.5s ease;
+}
+
+/* Weather Mood Classes */
+.bg-clear-day {
+    background: linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%) !important;
+    color: #1a202c !important;
+}
+
+.bg-clear-night {
+    background: linear-gradient(135deg, #0F2027 0%, #2C5364 100%) !important;
+    color: #f8fafc !important;
+}
+
+.bg-cloudy {
+    background: linear-gradient(135deg, #3E5151 0%, #DECBA4 100%) !important;
+    color: #1a202c !important;
+}
+
+.bg-rainy {
+    background: linear-gradient(135deg, #4B6CB7 0%, #182848 100%) !important;
+    color: #f8fafc !important;
+}
+
+.bg-snowy {
+    background: linear-gradient(135deg, #E6E9F0 0%, #EEF1F5 100%) !important;
+    color: #2d3748 !important;
+}
+
+.bg-storm {
+    background: linear-gradient(135deg, #141E30 0%, #243B55 100%) !important;
+    color: #f8fafc !important;
+}
+
+/* --- 1. Map Tags & Iframes --- */
+.map-tag {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 10px;
+    z-index: 10;
+    border: 1px solid var(--glass);
+    text-align: right;
+}
+
+.tag-main {
+    font-size: 0.75rem;
+    font-weight: 800;
+    display: block;
+}
+
+.tag-sub {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    filter: contrast(1.1) brightness(0.9);
+}
+
+/* --- 2. Combo Card (Clock Top / System Bottom) --- */
+.combo-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background: radial-gradient(circle, #1e293b, #0b0f1a);
+}
+
+.clock-half {
+    flex: 7;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+}
+
+#clock-time {
+    font-size: 7rem;
+    font-weight: 900;
+    color: var(--text);
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 10px;
+}
+
+#clock-date {
+    font-size: 1.5rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+#nameday-info {
+    font-size: 1.2rem;
+    color: #64748b;
+}
+
+.system-half {
+    flex: 3;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    align-items: center;
+    background: transparent;
+}
+
+.sys-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    height: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 5px;
+    overflow: hidden;
+}
+
+.sys-icon-wrapper {
+    margin-bottom: 4px;
+    opacity: 1;
+}
+
+.sys-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.sys-val {
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.sys-sub {
+    font-size: 0.8rem;
+    font-weight: 600;
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
+.cpu-text {
+    color: var(--cpu-color);
+}
+
+.ram-text {
+    color: #a855f7;
+}
+
+.disk-text {
+    color: #22c55e;
+}
+
+.net-values-container {
+    display: flex;
+    gap: 0;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 2.2rem;
+    max-height: 2.2rem;
+}
+
+.net-value-item {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    flex: 1;
+    justify-content: center;
+}
+
+/* Vertical divider between download and upload */
+.net-value-item + .net-value-item::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;
+    height: 1.5rem;
+    background: #475569;
+    opacity: 0.4;
+}
+
+.net-values-container {
+    position: relative;
+}
+
+/* Download arrow - green */
+.net-value-item:first-child .net-arrow {
+    color: #3b82f6;
+    font-size: 1rem;
+    font-weight: 700;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+/* Upload arrow - orange */
+.net-value-item:last-child .net-arrow {
+    color: #f97316;
+    font-size: 1rem;
+    font-weight: 700;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+/* Download number - green */
+.net-value-item:first-child .net-number {
+    color: #3b82f6;
+    font-size: 1.6rem;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1;
+}
+
+/* Upload number - orange */
+.net-value-item:last-child .net-number {
+    color: #f97316;
+    font-size: 1.6rem;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1;
+}
+
+/* Responsive font sizes for network numbers */
+.net-number.size-large {
+    font-size: 1.3rem;
+}
+
+.net-number.size-xlarge {
+    font-size: 1.1rem;
+}
+
+.net-number.size-xxlarge {
+    font-size: 0.95rem;
+}
+
+
+/* --- 3. Weather Panel & Dynamic Moods --- */
+#weather-rect {
+    background: var(--card);
+    transition: all 0.8s ease;
+}
+
+/* Ensure weather text follows the mood color */
+.weather-panel, .weather-panel .w-desc, .weather-panel .stat-value, .weather-panel .fc-temp {
+    color: inherit;
+}
+
+.weather-panel .stat-label, .weather-panel .fc-date, .weather-panel .home-sub, .weather-panel .room-label {
+    color: inherit;
+    opacity: 0.7;
+}
+
+.weather-panel {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 15px;
+    overflow: hidden;
+}
+
+.w-section-top {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.w-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.w-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.stat-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.w-section-middle {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.w-forecast-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.fc-day-box {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.w-section-bottom {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.home-sub, .fc-date, .stat-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stat-value, .fc-temp {
+    font-weight: 900;
+}
+
+.home-grid-layout {
+    display: grid;
+    grid-template-columns: 0.8fr 0.8fr 2.4fr;
+    gap: 12px;
+    height: 100%;
+    min-height: 0;
+}
+
+.sensor-card-mini {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    padding: 12px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.big-val {
+    font-size: clamp(1.5rem, 4vw, 2.8rem);
+    font-weight: 950;
+    line-height: 1;
+    letter-spacing: -2px;
+    display: block;
+}
+
+.unit-label {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    font-weight: 600;
+    margin-left: 2px;
+}
+
+.balcony-inner-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    height: 100%;
+    min-height: 0;
+    align-items: center;
+}
+
+.balc-item {
+    text-align: center;
+    min-height: 0;
+}
+
+.room-label {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.status-dot {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color 0.3s ease;
+    background-color: var(--danger); /* Default to red */
+}
+
+.status-online {
+    background: var(--success) !important;
+    box-shadow: 0 0 8px var(--success);
+}
+
+.status-offline {
+    background-color: var(--danger) !important;
+    box-shadow: 0 0 8px var(--danger);
+}
+
+/* --- 6. Transport Panel --- */
+.transport-panel {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.transport-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.transport-header {
+    margin: 0 0 8px 0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94a3b8;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.bus-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 4px;
+}
+
+.bus-loading {
+    font-size: 0.7rem;
+    opacity: 0.5;
+    text-align: center;
+    padding: 10px;
+}
+
+.bus-item {
+    display: grid;
+    grid-template-columns: 38px 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 10px;
+    margin: 0 2px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent);
+    flex: 1;
+    min-height: 0;
+}
+
+.bus-line {
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 2px 0;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.bus-direction {
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.bus-times {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: monospace;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    min-width: 80px;
+}
+
+.bus-time-predicted {
+    font-weight: bold;
+}
+
+.bus-time-scheduled {
+    color: #64748b;
+}
+
+.bus-mins {
+    text-align: right;
+    min-width: 40px;
+}
+
+.bus-mins-value {
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.bus-mins-unit {
+    font-size: 0.55rem;
+    font-weight: normal;
+    opacity: 0.7;
+}
+
+.bus-urgent {
+    animation: pulse-urgent 1s ease-in-out infinite;
+}
+
+@keyframes pulse-urgent {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.bus-no-data {
+    font-size: 0.7rem;
+    opacity: 0.4;
+    padding: 5px;
+    text-align: center;
+}
+
+.bus-number {
+    background: #d00000; /* PID Red */
+    color: white;
+    font-weight: 900;
+    padding: 4px 8px;
+    border-radius: 6px;
+    min-width: 45px;
+    text-align: center;
+    margin-right: 15px;
+}
+
+.bus-dest {
+    flex-grow: 1;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #f8fafc;
+}
+
+.bus-time {
+    font-weight: 900;
+    font-size: 1.2rem;
+    color: var(--accent);
+}
+
+.delay-text {
+    color: var(--danger);
+    font-size: 0.7rem;
+    margin-left: 5px;
+}
+
+.pulse {
+    color: #22c55e; /* Green for NOW */
+    animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 0.3;
+    }
+}
+
+@keyframes pulse-red {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.bus-urgent {
+    animation: pulse-red 1.5s infinite ease-in-out;
+    color: #ef4444 !important; /* Force red for urgent */
+}
+
+/* Night Mode Styles */
+body.night-mode {
+    background: #000000;
+}
+
+.rect.night-mode-clock {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #000000 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rect.night-mode-clock .combo-container {
+    background: transparent !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.rect.night-mode-clock .clock-half {
+    flex: none;
+}
+
+.rect.night-mode-clock .system-half {
+    display: none !important;
+}
+
+.rect.night-mode-clock #clock-time {
+    font-size: 12vw;
+    font-weight: 900;
+}
+
+.rect.night-mode-clock #clock-date {
+    font-size: 2.5vw;
+    opacity: 0.6;
+}
+
+.rect.night-mode-clock #nameday-info {
+    display: none;
+}
+
+/* Todoist Todo Lists */
+
+/* Todoist brand colors */
+.rect.todoist-rect {
+    background: linear-gradient(135deg, #db4c3f 0%, #c23a2e 100%);
+    border: 1px solid rgba(219, 76, 63, 0.3);
+}
+
+.todoist-header-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 15px 8px 15px;
+}
+
+.todoist-main-header {
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin: 0;
+    text-align: left;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.todoist-update-time {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.todoist-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 15px;
+    height: calc(100% - 50px);
+    overflow: hidden;
+}
+
+.todo-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.todo-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 4px;
+}
+
+.todo-header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin: 0;
+    color: #ffffff;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.todo-count {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #ffffff;
+    opacity: 0.9;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.todo-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+    padding-right: 4px;
+}
+
+/* Hide scrollbar for kiosk mode */
+.todo-list::-webkit-scrollbar {
+    display: none;
+}
+
+.todo-list {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+.todo-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border-left: 3px solid rgba(255, 255, 255, 0.4);
+    transition: all 0.2s ease;
+}
+
+.todo-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.todo-checkbox {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    margin-top: 2px;
+    transition: all 0.2s ease;
+}
+
+.todo-item:hover .todo-checkbox {
+    border-color: #ffffff;
+}
+
+.todo-content {
+    flex: 1;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    font-weight: 500;
+    color: #ffffff;
+}
+
+/* Priority indicators via border color */
+.todo-item.priority-4 {
+    border-left-color: #fef3c7; /* Light yellow - Urgent */
+    background: rgba(254, 243, 199, 0.15);
+}
+
+.todo-item.priority-3 {
+    border-left-color: #fca5a5; /* Light red - High */
+    background: rgba(252, 165, 165, 0.15);
+}
+
+.todo-item.priority-2 {
+    border-left-color: #bfdbfe; /* Light blue - Medium */
+    background: rgba(191, 219, 254, 0.15);
+}
+
+.todo-item.priority-1 {
+    border-left-color: rgba(255, 255, 255, 0.3); /* White - Normal */
+}
+
+.todo-loading,
+.todo-empty {
+    text-align: center;
+    padding: 20px 10px;
+    opacity: 0.4;
+    font-style: italic;
+    font-size: 0.75rem;
+}
+
