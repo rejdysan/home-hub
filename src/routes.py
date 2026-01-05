@@ -387,11 +387,11 @@ async def get_index():
     Uses FileResponse for proper async file handling and automatic caching headers.
     This is better for Raspberry Pi performance than reading file into memory.
     """
-    html_path = Path(__file__).parent.parent / "static" / "index.html"
+    html_path = Path(__file__).parent / "static" / "index.html"
 
     if not html_path.exists():
-        logger.error("index.html not found")
-        return HTMLResponse("index.html not found", status_code=404)
+        logger.error(f"index.html not found at {html_path}")
+        return HTMLResponse(f"index.html not found at {html_path}", status_code=404)
 
     # Use FileResponse for efficient async file serving with proper headers
     return FileResponse(html_path, media_type="text/html")
