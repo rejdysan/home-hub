@@ -8,14 +8,26 @@
  */
 function updateClock() {
     const now = new Date();
-    const isNightMode = window.getCurrentMode && window.getCurrentMode() === KioskMode.NIGHT;
 
-    // In night mode show HH:MM only, otherwise show HH:MM:SS
-    const timeFormat = isNightMode
-        ? {hour: '2-digit', minute: '2-digit'}
-        : {hour: '2-digit', minute: '2-digit', second: '2-digit'};
+    // Check if we're in night mode
+    const isNightMode = window.getCurrentMode && window.getCurrentMode() === window.KioskMode.NIGHT;
 
-    document.getElementById(ElementId.CLOCK_TIME).innerText = now.toLocaleTimeString(Locale.TIME, timeFormat);
+    // Format time based on mode (manual formatting for better browser compatibility)
+    let timeString;
+    if (isNightMode) {
+        // Night mode: HH:MM only
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        timeString = `${hours}:${minutes}`;
+    } else {
+        // Day/Morning mode: HH:MM:SS
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        timeString = `${hours}:${minutes}:${seconds}`;
+    }
+
+    document.getElementById(ElementId.CLOCK_TIME).innerText = timeString;
     document.getElementById(ElementId.CLOCK_DATE).innerText = now.toLocaleDateString(Locale.DATE, DateFormat.FULL_DATE);
 }
 
