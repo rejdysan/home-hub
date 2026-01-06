@@ -2,9 +2,10 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from queue import Queue
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
 from src.config import config
@@ -273,6 +274,24 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+
+# Add no-cache middleware for static files
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Disable caching for static files to ensure browser always fetches latest version."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Only apply no-cache headers to static files
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
+        return response
+
+
+app.add_middleware(NoCacheMiddleware)
 
 # Add CORS middleware (restrictive for production security)
 app.add_middleware(

@@ -17,3 +17,4 @@ httpx
 # Note: Pin versions to ensure reproducible builds
 # Update periodically for security patches
 # Test on Raspberry Pi before updating production
+starlette
