@@ -30,6 +30,7 @@ class WebSocketMessageType(str, Enum):
     SYSTEM = "system"
     HEARTBEAT = "heartbeat"
     TODOIST = "todoist"
+    CALENDAR = "calendar"
 
 
 class BusStop(str, Enum):
@@ -100,6 +101,14 @@ class ApiParam(str, Enum):
     COUNTRY = "country"
     # Todoist
     PROJECT_ID = "project_id"
+    # Google Calendar
+    CALENDAR_ID = "calendarId"
+    TIME_MIN = "timeMin"
+    TIME_MAX = "timeMax"
+    MAX_RESULTS = "maxResults"
+    SINGLE_EVENTS = "singleEvents"
+    ORDER_BY = "orderBy"
+    TIME_ZONE = "timeZone"
 
 
 class ApiHeader(str, Enum):
@@ -116,6 +125,13 @@ class ApiValue(str, Enum):
     TIMEZONE_PRAGUE = "Europe/Prague"
     # Countries
     COUNTRY_SK = "sk"
+    # Google Calendar
+    ORDER_BY_START_TIME = "startTime"
+
+
+class ApiResponseKey(str, Enum):
+    """Common API response keys."""
+    ITEMS = "items"
 
 
 class WeatherCode(int, Enum):

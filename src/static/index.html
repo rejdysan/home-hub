@@ -10,7 +10,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="/static/css/style.css?v=2">
+    <link rel="stylesheet" href="/static/css/style.css">
 
     <!-- Hide cursor in kiosk mode -->
     <style>
@@ -43,12 +43,18 @@
                     src="https://www.google.com/maps/embed/v1/directions?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&origin=50.0878433,14.478581&destination=50.0240701,14.4603428&waypoints=50.0466578,14.4567786&mode=driving"></iframe>
         </div>
 
-        <div class="rect">
-            <div class="map-tag" style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                <span class="tag-sub" id="update-cal1">Updating...</span>
+        <div class="rect calendar-rect">
+            <div class="calendar-header">
+                <h2 class="calendar-main-header">
+                    <i data-lucide="calendar" size="16"></i> CALENDAR
+                </h2>
+                <span class="calendar-update-time" id="calendar-updated">Updated: --:--:--</span>
             </div>
-            <iframe id="calendar-frame-1"
-                    src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FPrague&showPrint=0&showTitle=0&showNav=0&showTabs=0&showCalendars=0&showTz=0&src=bWljaGFsLnJlamR1Z2FAZ21haWwuY29t&src=ZmFtaWx5MDY4NTQ3NDY3NzcyNzU1ODQ0NDlAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&src=MGFwcXRqZnBrdHJiaHZzYzk2dHI3NGs4ZjhAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&src=MWY0ZjU3MzIwZjNiNTU3MTY0ZTg3NTZiNmIwMGM0ODBkYzlhZTFlMjcxYzQyZDMyNDBiNTc4MjllYTAyMzQ4N0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t&src=enV6YW5ha29uZWNuYTI3QGdtYWlsLmNvbQ&src=c2suY3plY2gjaG9saWRheUBncm91cC52LmNhbGVuZGFyLmdvb2dsZS5jb20&src=c2suc2xvdmFrI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%237986cb&color=%23e4c441&color=%239e69af&color=%23f6bf26&color=%23616161&color=%234285f4&color=%23e67c73"></iframe>
+            <div class="calendar-scroll-container">
+                <div id="calendar-container" class="calendar-container">
+                    <div class="calendar-loading">Loading calendar...</div>
+                </div>
+            </div>
         </div>
         <!-- Todoist Lists -->
         <div class="rect todoist-rect">
@@ -205,13 +211,13 @@
                         <div class="sensor-card-mini">
                             <span class="room-label">Bedroom</span>
                             <div id="status-bedroom" class="status-dot status-offline"></div>
-                            <span class="home-sub" style="margin-top: 15px;">Temperature</span>
+                            <span class="home-sub" style="margin-top: 15px;">Temp</span>
                             <span class="big-val"><span id="home-bedroom">--</span><small class="unit-label"> °</small></span>
                         </div>
                         <div class="sensor-card-mini">
-                            <span class="room-label">Livingroom</span>
+                            <span class="room-label">Mainroom</span>
                             <div id="status-living" class="status-dot status-offline"></div>
-                            <span class="home-sub" style="margin-top: 15px;">Temperature</span>
+                            <span class="home-sub" style="margin-top: 15px;">Temp</span>
                             <span class="big-val"><span id="home-living">--</span><small
                                     class="unit-label"> °</small></span>
                         </div>
@@ -220,7 +226,7 @@
                             <div id="status-balcony" class="status-dot status-offline"></div>
                             <div class="balcony-inner-grid" style="margin-top: 10px;">
                                 <div class="balc-item">
-                                    <span class="home-sub">Temperature</span>
+                                    <span class="home-sub">Temp</span>
                                     <span class="big-val"><span id="home-balcony-temp">--</span><small
                                             class="unit-label">°</small></span>
                                 </div>
@@ -272,6 +278,7 @@
 <script src="/static/js/weather.js"></script>
 <script src="/static/js/transport.js"></script>
 <script src="/static/js/todoist.js"></script>
+<script src="/static/js/calendar.js"></script>
 <script src="/static/js/updates.js"></script>
 <script src="/static/js/websocket.js"></script>
 <script src="/static/js/kiosk.js"></script>

@@ -15,7 +15,8 @@ const MessageType = Object.freeze({
     SYSTEM: 'system',
     TRANSPORT: 'transport',
     HEARTBEAT: 'heartbeat',
-    TODOIST: 'todoist'
+    TODOIST: 'todoist',
+    CALENDAR: 'calendar'
 });
 
 // ============================================================================
@@ -112,7 +113,11 @@ const ElementId = Object.freeze({
 
     // Transport
     BUS_LIST_MALESICKA: 'bus-list-malesicka',
-    BUS_LIST_OLGY: 'bus-list-olgy'
+    BUS_LIST_OLGY: 'bus-list-olgy',
+
+    // Calendar
+    CALENDAR_CONTAINER: 'calendar-container',
+    CALENDAR_UPDATED: 'calendar-updated'
 });
 
 // ============================================================================
@@ -158,7 +163,17 @@ const CssClass = Object.freeze({
     // Forecast
     FC_DAY_BOX: 'fc-day-box',
     FC_DATE: 'fc-date',
-    FC_TEMP: 'fc-temp'
+    FC_TEMP: 'fc-temp',
+
+    // Calendar
+    CALENDAR_EVENT: 'calendar-event',
+    CALENDAR_EVENT_REJDY: 'calendar-event-rejdy',
+    CALENDAR_EVENT_ZUZ: 'calendar-event-zuz',
+    CALENDAR_EVENT_CZ: 'calendar-event-cz',
+    CALENDAR_EVENT_SK: 'calendar-event-sk',
+    CALENDAR_EVENT_TIME: 'calendar-event-time',
+    CALENDAR_EVENT_TITLE: 'calendar-event-title',
+    CALENDAR_NO_EVENTS: 'calendar-no-events'
 });
 
 // ============================================================================
@@ -224,16 +239,16 @@ const Interval = Object.freeze({
     KIOSK_CHECK: 1000,
     WEBSOCKET_RECONNECT: 2000,
     DEFAULT_MAP_REFRESH: 60000,
-    DEFAULT_CALENDAR_REFRESH: 300000
+    DEFAULT_CALENDAR_REFRESH: 3000000000
 });
 
 // ============================================================================
 // Default Configuration Values
 // ============================================================================
 const DefaultConfig = Object.freeze({
-    MORNING_MODE_START: '05:30',
-    DAY_MODE_START: '08:00',
-    NIGHT_MODE_START: '22:00',
+    MORNING_MODE_START: '00:00',
+    DAY_MODE_START: '00:01',
+    NIGHT_MODE_START: '23:59',
     DEFAULT_CPU_TEMP: 'N/A',
     API_PORT: 8000,
     BUS_SLOTS: 5,

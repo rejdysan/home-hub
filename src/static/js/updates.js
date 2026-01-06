@@ -10,13 +10,28 @@ window.sensorStatus = {};
  * Update sensor status indicator dots based on backend status
  */
 function updateSensorStatusIndicators() {
+    // Create a case-insensitive lookup map from backend sensor status
+    const statusLookup = {};
+    for (const [name, status] of Object.entries(window.sensorStatus || {})) {
+        // Normalize: remove spaces and convert to lowercase for matching
+        const normalizedName = name.replace(/\s+/g, '').toLowerCase();
+        statusLookup[normalizedName] = status;
+    }
+
+    // Update each status indicator
     for (const [sensorName, elementId] of Object.entries(SensorElementMap)) {
         const statusEl = document.getElementById(elementId);
-        if (statusEl && window.sensorStatus[sensorName]) {
-            const isOnline = window.sensorStatus[sensorName].online;
-            statusEl.className = isOnline
-                ? `${CssClass.STATUS_DOT} ${CssClass.STATUS_ONLINE}`
-                : `${CssClass.STATUS_DOT} ${CssClass.STATUS_OFFLINE}`;
+        if (statusEl) {
+            // Normalize the sensor name for lookup
+            const normalizedName = sensorName.replace(/\s+/g, '').toLowerCase();
+            const sensorStatus = statusLookup[normalizedName];
+
+            if (sensorStatus) {
+                const isOnline = sensorStatus.online;
+                statusEl.className = isOnline
+                    ? `${CssClass.STATUS_DOT} ${CssClass.STATUS_ONLINE}`
+                    : `${CssClass.STATUS_DOT} ${CssClass.STATUS_OFFLINE}`;
+            }
         }
     }
 }

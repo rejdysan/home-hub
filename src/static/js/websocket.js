@@ -29,6 +29,7 @@ function connect() {
                     window.updateTransport(msg.transport);
                     window.updateSensorStatusIndicators();
                     if (msg.todoist) TodoistManager.update(msg.todoist);
+                    if (msg.calendar) window.renderCalendar(msg.calendar);
                     break;
                 case MessageType.SENSORS:
                     window.updateSensors(msg.data);
@@ -51,6 +52,9 @@ function connect() {
                     break;
                 case MessageType.TODOIST:
                     TodoistManager.update(msg.data);
+                    break;
+                case MessageType.CALENDAR:
+                    window.renderCalendar(msg.data);
                     break;
                 case MessageType.HEARTBEAT:
                     // Keep-alive, nothing to do
