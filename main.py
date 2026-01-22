@@ -12,7 +12,7 @@ from src.config import config
 from src.logger import logger
 from src.database import init_db, close_all_connections
 from src.mqtt_handler import setup_mqtt, set_sensor_callback, set_status_change_callback, get_sensor_status
-from src.routes import router, update_weather_data, update_nameday_data, update_bus_data, check_sensor_status, update_todoist_data, close_http_client, cleanup_database_daily
+from src.routes import router, update_weather_data, update_nameday_data, update_bus_data, check_sensor_status, update_todoist_data, update_calendar_data, close_http_client, cleanup_database_daily
 from src.system_info import monitor_system, set_broadcast_func
 from src.websocket_manager import manager
 from src import sensor_cache
@@ -199,6 +199,7 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(update_bus_data(), name="bus_update"),
                 asyncio.create_task(check_sensor_status(), name="sensor_status_check"),
                 asyncio.create_task(update_todoist_data(), name="todoist_update"),
+                asyncio.create_task(update_calendar_data(), name="calendar_update"),
                 asyncio.create_task(cleanup_database_daily(), name="database_cleanup")
             ]
             logger.info("✅ Background tasks started")

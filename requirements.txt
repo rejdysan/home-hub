@@ -14,6 +14,10 @@ psutil
 # HTTP Client
 httpx
 
+# Google Calendar API (Service Account)
+google-auth
+google-api-python-client
+
 # Note: Pin versions to ensure reproducible builds
 # Update periodically for security patches
 # Test on Raspberry Pi before updating production

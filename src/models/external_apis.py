@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any, Optional, List
+from zoneinfo import ZoneInfo
 
 from .enums import WEATHER_DESCRIPTIONS
 
@@ -358,4 +359,138 @@ class TodoistProjectResponse:
             is_team_inbox=data.get("is_team_inbox", False),
             view_style=data.get("view_style", "list"),
             url=data.get("url")
+        )
+
+
+# ============================================================================
+# Google Calendar API Models
+# ============================================================================
+
+@dataclass
+class GoogleCalendarEventTime:
+    """Time data from Google Calendar API event."""
+    date_time: Optional[str] = None
+    date: Optional[str] = None
+    time_zone: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "GoogleCalendarEventTime":
+        """Parse event time from API response."""
+        return cls(
+            date_time=data.get("dateTime"),
+            date=data.get("date"),
+            time_zone=data.get("timeZone")
+        )
+
+    def get_value(self) -> str:
+        """Get the time value (dateTime or date)."""
+        return self.date_time or self.date or ""
+
+    def is_all_day(self) -> bool:
+        """Check if this is an all-day event."""
+        return self.date is not None and self.date_time is None
+
+
+@dataclass
+class GoogleCalendarEventResponse:
+    """Response model for a Google Calendar event from the API."""
+    id: str
+    summary: str
+    start: GoogleCalendarEventTime
+    end: GoogleCalendarEventTime
+    color_id: Optional[str] = None
+    status: str = "confirmed"
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "GoogleCalendarEventResponse":
+        """Parse Google Calendar event from API response."""
+        return cls(
+            id=data.get("id", ""),
+            summary=data.get("summary", "No Title"),
+            start=GoogleCalendarEventTime.from_dict(data.get("start", {})),
+            end=GoogleCalendarEventTime.from_dict(data.get("end", {})),
+            color_id=data.get("colorId"),
+            status=data.get("status", "confirmed")
+        )
+
+    def to_calendar_event(self, calendar_id: str, calendar_name: str) -> "CalendarEvent":
+        """Convert to internal CalendarEvent model with timezone conversion to UTC.
+
+        Uses the dateTime and timeZone fields from the API response to create
+        timezone-aware datetimes, then converts to UTC for consistent handling.
+        """
+        from .internal import CalendarEvent
+
+        is_all_day = self.start.is_all_day()
+
+        # Get timezone from the event (API populates this when we pass timeZone parameter)
+        # Default to Europe/Prague if not provided
+        event_tz_name = self.start.time_zone or "Europe/Prague"
+        event_tz = ZoneInfo(event_tz_name)
+        utc_tz = ZoneInfo("UTC")
+
+        if is_all_day:
+            # For all-day events, use date field and construct datetime at midnight in event timezone
+            start_date_str = self.start.date
+            end_date_str = self.end.date
+
+            if start_date_str and end_date_str:
+                try:
+                    # Parse YYYY-MM-DD date and create datetime at midnight in event timezone
+                    start_date = datetime.fromisoformat(start_date_str)
+                    end_date = datetime.fromisoformat(end_date_str)
+
+                    # Create datetime at midnight in the event's timezone
+                    start_dt = start_date.replace(tzinfo=event_tz)
+                    end_dt = end_date.replace(tzinfo=event_tz)
+
+                    # Convert to UTC
+                    start_utc = start_dt.astimezone(utc_tz)
+                    end_utc = end_dt.astimezone(utc_tz)
+
+                    start_str = start_utc.isoformat()
+                    end_str = end_utc.isoformat()
+                except (ValueError, AttributeError):
+                    # Fallback to original values
+                    start_str = start_date_str
+                    end_str = end_date_str
+            else:
+                # Fallback
+                start_str = self.start.get_value()
+                end_str = self.end.get_value()
+        else:
+            # For timed events, use dateTime field which already has timezone info
+            start_datetime_str = self.start.date_time
+            end_datetime_str = self.end.date_time
+
+            if start_datetime_str and end_datetime_str:
+                try:
+                    # Parse ISO datetime (already has timezone like +01:00)
+                    start_dt = datetime.fromisoformat(start_datetime_str)
+                    end_dt = datetime.fromisoformat(end_datetime_str)
+
+                    # Convert to UTC
+                    start_utc = start_dt.astimezone(utc_tz)
+                    end_utc = end_dt.astimezone(utc_tz)
+
+                    start_str = start_utc.isoformat()
+                    end_str = end_utc.isoformat()
+                except (ValueError, AttributeError):
+                    # Fallback to original values
+                    start_str = start_datetime_str
+                    end_str = end_datetime_str
+            else:
+                # Fallback
+                start_str = self.start.get_value()
+                end_str = self.end.get_value()
+
+        return CalendarEvent(
+            id=self.id,
+            summary=self.summary,
+            start=start_str,
+            end=end_str,
+            all_day=is_all_day,
+            calendar_id=calendar_id,
+            calendar_name=calendar_name,
+            color_id=self.color_id
         )

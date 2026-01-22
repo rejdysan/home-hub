@@ -11,17 +11,19 @@ from src.config import config
 from src.logger import logger
 from src.database import cleanup_old_readings
 from src.models import (
-    BusDeparture, BusDepartures, CurrentWeather, GolemioResponse,
+    BusDeparture, BusDepartures, CurrentWeather, GolemioResponse, GolemioDeparture,
     NamedayResponse, OpenMeteoResponse, FrontendConfig, SystemHealth,
     InitialStateMessage, SensorStatusMessage, TransportMessage,
     WeatherMessage, NamedayMessage, HeartbeatMessage,
     BusStop, BUS_STOP_LINES, ApiUrl, ApiParam, ApiHeader, ApiValue,
     WEATHER_CURRENT_PARAMS, WEATHER_DAILY_PARAMS,
     TodoistData, TodoistProject, TodoistTask, TodoistMessage,
-    TodoistTaskResponse, TodoistProjectResponse
+    TodoistTaskResponse, TodoistProjectResponse,
+    CalendarData, CalendarMessage
 )
 from src.system_info import live_system_stats, check_wifi_connectivity
 from src.websocket_manager import manager
+from src.calendar_service import GoogleCalendarService
 
 router = APIRouter()
 
@@ -30,6 +32,7 @@ latest_weather: CurrentWeather | None = None
 latest_nameday: str = "..."
 latest_departures: BusDepartures = BusDepartures()
 latest_todoist: TodoistData | None = None
+latest_calendar: CalendarData | None = None
 
 # Thread safety: Lock to protect global cache variables
 _cache_lock = asyncio.Lock()
@@ -37,6 +40,9 @@ _cache_lock = asyncio.Lock()
 # Shared HTTP client for connection pooling (Raspberry Pi optimization)
 # Reuses connections instead of creating new ones for each request
 _http_client: httpx.AsyncClient | None = None
+
+# Google Calendar service instance
+_calendar_service: GoogleCalendarService | None = None
 
 
 def get_http_client() -> httpx.AsyncClient:
@@ -61,6 +67,67 @@ async def close_http_client():
         await _http_client.aclose()
         _http_client = None
         logger.info("✅ HTTP client closed")
+
+
+def get_calendar_service() -> GoogleCalendarService | None:
+    """
+    Get or create the Google Calendar service.
+
+    Returns None if calendars are not configured.
+    """
+    global _calendar_service
+    if _calendar_service is None:
+        # Build calendar configs from environment
+        calendar_configs = {}
+        if config.GOOGLE_CALENDAR_REJDY_ID:
+            calendar_configs[config.GOOGLE_CALENDAR_REJDY_ID] = config.GOOGLE_CALENDAR_REJDY_NAME
+        if config.GOOGLE_CALENDAR_ZUZ_ID:
+            calendar_configs[config.GOOGLE_CALENDAR_ZUZ_ID] = config.GOOGLE_CALENDAR_ZUZ_NAME
+
+        # Add bank holiday calendars
+        calendar_configs[config.GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ] = config.GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_NAME
+        calendar_configs[config.GOOGLE_CALENDAR_BANK_HOLIDAYS_SK] = config.GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_NAME
+
+        if not calendar_configs:
+            logger.warning("⚠️ No Google Calendar IDs configured, calendar updates disabled")
+            return None
+
+        service_account_path = Path(__file__).parent.parent / config.GOOGLE_SERVICE_ACCOUNT_FILE
+        _calendar_service = GoogleCalendarService(service_account_path, calendar_configs)
+
+    return _calendar_service
+
+
+async def update_calendar_data() -> None:
+    """Background task to fetch Google Calendar events."""
+    global latest_calendar
+
+    calendar_service = get_calendar_service()
+    if not calendar_service:
+        return
+
+    logger.info(f"📅 Calendar monitoring started")
+
+    while True:
+        try:
+            # Fetch events for the current month view
+            new_calendar = await calendar_service.fetch_events_async()
+
+            async with _cache_lock:
+                # Only broadcast if data changed
+                if new_calendar != latest_calendar:
+                    latest_calendar = new_calendar
+                    logger.debug(f"📅 Calendar updated: {len(new_calendar.events)} events")
+                    # Broadcast to all connected clients
+                    message = CalendarMessage(calendar=latest_calendar)
+                    await manager.broadcast(message.to_dict())
+                else:
+                    logger.debug("📅 Calendar data unchanged")
+
+        except Exception as e:
+            logger.error(f"⚠️ Calendar data error: {e}")
+
+        await asyncio.sleep(config.GOOGLE_CALENDAR_UPDATE_INTERVAL)
 
 
 async def update_bus_data() -> None:
@@ -94,8 +161,8 @@ async def update_bus_data() -> None:
                 # Parse response into typed model
                 golemio_data = GolemioResponse.from_dict(response.json())
 
-                list_malesicka: List[BusDeparture] = []
-                list_olgy: List[BusDeparture] = []
+                golemio_malesicka: List[GolemioDeparture] = []
+                golemio_olgy: List[GolemioDeparture] = []
 
                 for dep in golemio_data.departures:
                     # Filter and separate by stop and line using enums
@@ -104,14 +171,18 @@ async def update_bus_data() -> None:
 
                     if stop_id == BusStop.MALESICKA.value and line in {l.value for l in
                                                                        BUS_STOP_LINES[BusStop.MALESICKA]}:
-                        list_malesicka.append(dep.to_bus_departure())
+                        golemio_malesicka.append(dep)
                     elif stop_id == BusStop.OLGY_HAVLOVE.value and line in {l.value for l in
                                                                             BUS_STOP_LINES[BusStop.OLGY_HAVLOVE]}:
-                        list_olgy.append(dep.to_bus_departure())
+                        golemio_olgy.append(dep)
 
-                # Sort by soonest first
-                list_malesicka.sort(key=lambda x: x.time_predicted)
-                list_olgy.sort(key=lambda x: x.time_predicted)
+                # Sort by soonest first using full datetime (handles date + time correctly)
+                golemio_malesicka.sort(key=lambda x: x.departure_timestamp.predicted or x.departure_timestamp.scheduled or "")
+                golemio_olgy.sort(key=lambda x: x.departure_timestamp.predicted or x.departure_timestamp.scheduled or "")
+
+                # Convert to internal model
+                list_malesicka = [dep.to_bus_departure() for dep in golemio_malesicka]
+                list_olgy = [dep.to_bus_departure() for dep in golemio_olgy]
 
                 # Take top 5
                 new_departures = BusDepartures(
@@ -472,7 +543,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 nameday=latest_nameday,
                 health=get_system_health(),
                 transport=latest_departures,
-                todoist=latest_todoist
+                todoist=latest_todoist,
+                calendar=latest_calendar
             )
 
         await websocket.send_json(initial_state.to_dict())

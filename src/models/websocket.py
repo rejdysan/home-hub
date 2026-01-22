@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 from .enums import WebSocketMessageType
 from .internal import (
     SensorStatus, SensorReading, SystemStats, SystemHealth,
-    BusDepartures, CurrentWeather, TodoistData
+    BusDepartures, CurrentWeather, TodoistData, CalendarData
 )
 
 
@@ -135,6 +135,20 @@ class TodoistMessage(BaseWebSocketMessage):
 
 
 @dataclass
+class CalendarMessage(BaseWebSocketMessage):
+    """WebSocket message for calendar updates."""
+    calendar: CalendarData
+
+    @property
+    def message_type(self) -> WebSocketMessageType:
+        return WebSocketMessageType.CALENDAR
+
+    @property
+    def data(self) -> Dict[str, Any]:
+        return self.calendar.to_dict()
+
+
+@dataclass
 class InitialStateMessage(BaseWebSocketMessage):
     """Initial state sent to WebSocket clients on connect."""
     sensors: List[SensorReading]
@@ -145,6 +159,7 @@ class InitialStateMessage(BaseWebSocketMessage):
     health: SystemHealth
     transport: BusDepartures
     todoist: Optional[TodoistData]
+    calendar: Optional[CalendarData]
 
     @property
     def message_type(self) -> WebSocketMessageType:
@@ -169,5 +184,6 @@ class InitialStateMessage(BaseWebSocketMessage):
                 "malesicka": [asdict(dep) for dep in self.transport.malesicka],
                 "olgy": [asdict(dep) for dep in self.transport.olgy]
             },
-            "todoist": self.todoist.to_dict() if self.todoist else None
+            "todoist": self.todoist.to_dict() if self.todoist else None,
+            "calendar": self.calendar.to_dict() if self.calendar else None
         }

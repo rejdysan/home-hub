@@ -188,3 +188,37 @@ class TodoistData:
             return False
         return self.projects == other.projects
 
+
+@dataclass
+class CalendarEvent:
+    """Represents a single Google Calendar event."""
+    id: str
+    summary: str
+    start: str
+    end: str
+    all_day: bool
+    calendar_id: str
+    calendar_name: str
+    color_id: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CalendarData:
+    """Container for calendar events."""
+    events: List[CalendarEvent] = field(default_factory=list)
+    updated: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "events": [event.to_dict() for event in self.events],
+            "updated": self.updated
+        }
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CalendarData):
+            return False
+        return self.events == other.events
+

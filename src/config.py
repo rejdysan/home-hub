@@ -31,6 +31,17 @@ class Config:
     TODOIST_PROJECT_1: str = os.getenv("TODOIST_PROJECT_1", "2364746733")
     TODOIST_PROJECT_2: str = os.getenv("TODOIST_PROJECT_2", "2364815186")
 
+    # Google Calendar Configuration
+    GOOGLE_SERVICE_ACCOUNT_FILE: str = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "google_service_account.json")
+    GOOGLE_CALENDAR_REJDY_ID: Optional[str] = os.getenv("GOOGLE_CALENDAR_REJDY_ID")
+    GOOGLE_CALENDAR_REJDY_NAME: str = os.getenv("GOOGLE_CALENDAR_REJDY_NAME", "Rejdy")
+    GOOGLE_CALENDAR_ZUZ_ID: Optional[str] = os.getenv("GOOGLE_CALENDAR_ZUZ_ID")
+    GOOGLE_CALENDAR_ZUZ_NAME: str = os.getenv("GOOGLE_CALENDAR_ZUZ_NAME", "Zuz")
+    GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ", "sk.czech#holiday@group.v.calendar.google.com")
+    GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_NAME: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_NAME", "Czech Holidays")
+    GOOGLE_CALENDAR_BANK_HOLIDAYS_SK: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_SK", "sk.slovak#holiday@group.v.calendar.google.com")
+    GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_NAME: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_NAME", "Slovak Holidays")
+
     # Location
     LOCATION_LATITUDE: str = os.getenv("LOCATION_LATITUDE", "50.0878433")
     LOCATION_LONGITUDE: str = os.getenv("LOCATION_LONGITUDE", "14.478581")
@@ -44,7 +55,7 @@ class Config:
     WEBSOCKET_UPDATE_INTERVAL: int = int(os.getenv("WEBSOCKET_UPDATE_INTERVAL", "1"))  # 1 second
     GOOGLE_MAPS_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_MAPS_UPDATE_INTERVAL", "60"))  # 60 seconds
     TODOIST_UPDATE_INTERVAL: int = int(os.getenv("TODOIST_UPDATE_INTERVAL", "60"))  # 60 seconds
-    GOOGLE_CALENDAR_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_CALENDAR_UPDATE_INTERVAL", "300"))  # 5 minutes
+    GOOGLE_CALENDAR_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_CALENDAR_UPDATE_INTERVAL", "30000"))  # 5 minutes
 
     # MQTT Throttle
     MQTT_SAVE_THROTTLE: int = int(os.getenv("MQTT_SAVE_THROTTLE", "5"))  # 5 seconds

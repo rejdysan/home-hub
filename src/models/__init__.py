@@ -22,6 +22,7 @@ from .enums import (
     ApiParam,
     ApiHeader,
     ApiValue,
+    ApiResponseKey,
     WEATHER_CURRENT_PARAMS,
     WEATHER_DAILY_PARAMS,
 )
@@ -41,6 +42,8 @@ from .external_apis import (
     OpenMeteoResponse,
     TodoistTaskResponse,
     TodoistProjectResponse,
+    GoogleCalendarEventTime,
+    GoogleCalendarEventResponse,
 )
 
 # Internal application models
@@ -56,6 +59,8 @@ from .internal import (
     TodoistTask,
     TodoistProject,
     TodoistData,
+    CalendarEvent,
+    CalendarData,
 )
 
 # WebSocket message models
@@ -69,6 +74,7 @@ from .websocket import (
     HeartbeatMessage,
     InitialStateMessage,
     TodoistMessage,
+    CalendarMessage,
 )
 
 __all__ = [
@@ -85,6 +91,7 @@ __all__ = [
     "ApiParam",
     "ApiHeader",
     "ApiValue",
+    "ApiResponseKey",
     "WEATHER_CURRENT_PARAMS",
     "WEATHER_DAILY_PARAMS",
     # External APIs
@@ -101,6 +108,8 @@ __all__ = [
     "OpenMeteoResponse",
     "TodoistTaskResponse",
     "TodoistProjectResponse",
+    "GoogleCalendarEventTime",
+    "GoogleCalendarEventResponse",
     # Internal
     "FrontendConfig",
     "SystemStats",
@@ -113,9 +122,12 @@ __all__ = [
     "TodoistTask",
     "TodoistProject",
     "TodoistData",
+    "CalendarEvent",
+    "CalendarData",
     # WebSocket
     "BaseWebSocketMessage",
     "TodoistMessage",
+    "CalendarMessage",
     "SensorStatusMessage",
     "TransportMessage",
     "WeatherMessage",
