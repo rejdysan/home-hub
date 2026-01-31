@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
 from queue import Queue
 from fastapi import FastAPI, Request
@@ -42,15 +43,17 @@ async def broadcast_sensor_update(name: str, prop: str, val: float):
     await manager.broadcast({"type": "sensors", "data": sensor_cache.get_all_as_dicts()})
 
     # Also broadcast updated sensor status
-    await manager.broadcast({"type": "sensor_status", "data": get_sensor_status()})
+    sensor_status = get_sensor_status()
+    await manager.broadcast({"type": "sensor_status", "data": {k: asdict(v) for k, v in sensor_status.items()}})
     logger.debug(f"📡 Broadcasted sensor update: {name}/{prop} = {val}")
 
 
 async def broadcast_status_change(name: str, is_online: bool):
     """Broadcast sensor status change to all connected WebSocket clients."""
+    sensor_status = get_sensor_status()
     await manager.broadcast({
         "type": "sensor_status",
-        "data": get_sensor_status()
+        "data": {k: asdict(v) for k, v in sensor_status.items()}
     })
     status_str = "online" if is_online else "offline"
     logger.debug(f"📡 Broadcasted sensor status change: {name} is {status_str}")
