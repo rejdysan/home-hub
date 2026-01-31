@@ -3,6 +3,9 @@
  * Renders a traditional calendar grid with events overlaid on dates
  */
 
+// Store the latest calendar data so we can re-render on day change (midnight)
+let _lastCalendarData = null;
+
 /**
  * Get the first day of a month (0 = Monday, 6 = Sunday)
  * JavaScript's getDay() returns 0 for Sunday, so we adjust to make Monday = 0
@@ -72,20 +75,79 @@ function formatEventTime(isoString, allDay) {
 }
 
 /**
- * Get calendar class based on calendar name
- * @param {string} calendarName
- * @returns {string}
+ * Google Calendar event colorId to hex color mapping
+ * These are the standard Google Calendar event colors.
+ * When color_id is null, the event uses the calendar's default color.
  */
-function getCalendarClass(calendarName) {
-    if (calendarName && calendarName.toLowerCase().includes('rejdy')) {
-        return CssClass.CALENDAR_EVENT_REJDY;
-    } else if (calendarName && calendarName.toLowerCase().includes('zuz')) {
-        return CssClass.CALENDAR_EVENT_ZUZ;
-    } else if (calendarName && calendarName.toLowerCase().includes('czech')) {
-        return CssClass.CALENDAR_EVENT_CZ;
-    } else if (calendarName && calendarName.toLowerCase().includes('slovak')) {
-        return CssClass.CALENDAR_EVENT_SK;
+const GOOGLE_EVENT_COLORS = {
+    '1':  '#7986CB', // Lavender
+    '2':  '#33B679', // Sage
+    '3':  '#8E24AA', // Grape
+    '4':  '#E67C73', // Flamingo
+    '5':  '#F6BF26', // Banana
+    '6':  '#F4511E', // Tangerine
+    '7':  '#039BE5', // Peacock
+    '8':  '#616161', // Graphite
+    '9':  '#3F51B5', // Blueberry
+    '10': '#0B8043', // Basil
+    '11': '#D50000', // Tomato
+};
+
+/** Default color when no colorId is set (Google Calendar default blue) */
+const DEFAULT_EVENT_COLOR = '#4285f4';
+
+/**
+ * Get the hex color for an event based on its Google color_id
+ * @param {string|null} colorId
+ * @returns {string} hex color
+ */
+function getEventColor(colorId) {
+    if (colorId && GOOGLE_EVENT_COLORS[colorId]) {
+        return GOOGLE_EVENT_COLORS[colorId];
     }
+    return DEFAULT_EVENT_COLOR;
+}
+
+/**
+ * Get the calendar owner prefix for display in event text
+ * @param {string} calendarName
+ * @returns {string} prefix like "(R)" or "(Z)" or "(CZ)" or "(SK)" or ""
+ */
+function getCalendarPrefix(calendarName) {
+    if (!calendarName) return '';
+    const name = calendarName.toLowerCase();
+    if (name.includes('rejdy')) return '(R)';
+    if (name.includes('zuz')) return '(Z)';
+    if (name.includes('czech')) return '(CZ)';
+    if (name.includes('slovak')) return '(SK)';
+    return '';
+}
+
+/**
+ * Parse a hex color to RGB components
+ * @param {string} hex
+ * @returns {{r: number, g: number, b: number}}
+ */
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 66, g: 133, b: 244 };
+}
+
+/**
+ * Determine if white or dark text should be used on a given background color
+ * @param {string} hex - background color
+ * @returns {string} text color
+ */
+function getContrastTextColor(hex) {
+    const { r, g, b } = hexToRgb(hex);
+    // Relative luminance formula
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.55 ? '#1f1f1f' : '#ffffff';
+}
     return '';
 }
 
@@ -393,10 +455,8 @@ function createSingleDayTimedEvent(event) {
     const eventEl = document.createElement('div');
     eventEl.className = 'calendar-event-timed';
 
-    const calendarClass = getCalendarClass(event.calendar_name);
-    if (calendarClass) {
-        eventEl.classList.add(calendarClass);
-    }
+    // Get Google Calendar color
+    const eventColor = getEventColor(event.color_id);
 
     // Check if event has ended (is in the past)
     const now = new Date();
@@ -405,15 +465,17 @@ function createSingleDayTimedEvent(event) {
         eventEl.classList.add('event-past');
     }
 
-    // Dot indicator
+    // Dot indicator with Google color
     const dot = document.createElement('span');
     dot.className = 'event-dot';
+    dot.style.background = eventColor;
     eventEl.appendChild(dot);
 
-    // Event text
+    // Event text with calendar prefix
     const text = document.createElement('span');
     const timeStr = formatEventTime(event.start, false);
-    text.textContent = `${timeStr} ${event.summary}`;
+    const prefix = getCalendarPrefix(event.calendar_name);
+    text.textContent = prefix ? `${timeStr} ${prefix} ${event.summary}` : `${timeStr} ${event.summary}`;
     text.className = 'event-text';
     eventEl.appendChild(text);
 
@@ -453,10 +515,12 @@ function createSpanningEvent(event, cellWidth, cellHeightPx) {
     eventEl.style.top = `${top}px`;
     eventEl.style.zIndex = String(zIndex);
 
-    const calendarClass = getCalendarClass(event.calendar_name);
-    if (calendarClass) {
-        eventEl.classList.add(calendarClass);
-    }
+    // Apply Google Calendar color via inline styles
+    const eventColor = getEventColor(event.color_id);
+    const { r, g, b } = hexToRgb(eventColor);
+    eventEl.style.background = `rgba(${r}, ${g}, ${b}, 0.9)`;
+    eventEl.style.borderLeftColor = eventColor;
+    eventEl.style.color = getContrastTextColor(eventColor);
 
     // Add arrow indicators for events that continue beyond visible segment
     if (event.showLeftArrow) {
@@ -471,9 +535,14 @@ function createSpanningEvent(event, cellWidth, cellHeightPx) {
     const eventEnd = parseEventDate(event.end);
     if (eventEnd < now) {
         eventEl.classList.add('event-past');
+        eventEl.style.background = `rgba(${r}, ${g}, ${b}, 0.3)`;
+        eventEl.style.color = '#6b7280';
     }
 
-    eventEl.textContent = event.summary;
+    // Event text with calendar prefix
+    const prefix = getCalendarPrefix(event.calendar_name);
+    const displayText = prefix ? `${prefix} ${event.summary}` : event.summary;
+    eventEl.textContent = displayText;
     eventEl.title = event.summary;
     return eventEl;
 }
@@ -483,6 +552,11 @@ function createSpanningEvent(event, cellWidth, cellHeightPx) {
  * @param {Object} calendarData - Calendar data from WebSocket
  */
 function renderCalendar(calendarData) {
+    // Store latest data for re-renders (e.g. on day change at midnight)
+    if (calendarData) {
+        _lastCalendarData = calendarData;
+    }
+
     const container = document.getElementById(ElementId.CALENDAR_CONTAINER);
     const updatedEl = document.getElementById(ElementId.CALENDAR_UPDATED);
 
@@ -512,7 +586,7 @@ function renderCalendar(calendarData) {
     const monthHeader = document.createElement('div');
     monthHeader.className = 'calendar-month-header';
 
-    // Legend (left side) - two columns
+    // Legend (left side) - prefix explanations
     const legendContainer = document.createElement('div');
     legendContainer.className = 'calendar-legend';
 
@@ -522,12 +596,12 @@ function renderCalendar(calendarData) {
 
     const rejdyItem = document.createElement('div');
     rejdyItem.className = 'calendar-legend-item';
-    rejdyItem.innerHTML = '<span class="legend-dot legend-dot-rejdy"></span><span>Rejdy</span>';
+    rejdyItem.innerHTML = '<span class="legend-prefix">(R)</span><span>Rejdy</span>';
     legendCol1.appendChild(rejdyItem);
 
     const zuzItem = document.createElement('div');
     zuzItem.className = 'calendar-legend-item';
-    zuzItem.innerHTML = '<span class="legend-dot legend-dot-zuz"></span><span>Zuzana</span>';
+    zuzItem.innerHTML = '<span class="legend-prefix">(Z)</span><span>Zuzana</span>';
     legendCol1.appendChild(zuzItem);
 
     legendContainer.appendChild(legendCol1);
@@ -538,12 +612,12 @@ function renderCalendar(calendarData) {
 
     const czItem = document.createElement('div');
     czItem.className = 'calendar-legend-item';
-    czItem.innerHTML = '<span class="legend-dot legend-dot-cz"></span><span>CZ Holidays</span>';
+    czItem.innerHTML = '<span class="legend-prefix">(CZ)</span><span>CZ Holidays</span>';
     legendCol2.appendChild(czItem);
 
     const skItem = document.createElement('div');
     skItem.className = 'calendar-legend-item';
-    skItem.innerHTML = '<span class="legend-dot legend-dot-sk"></span><span>SK Holidays</span>';
+    skItem.innerHTML = '<span class="legend-prefix">(SK)</span><span>SK Holidays</span>';
     legendCol2.appendChild(skItem);
 
     legendContainer.appendChild(legendCol2);
@@ -859,3 +933,16 @@ function renderCalendar(calendarData) {
 
 // Export for use in other modules
 window.renderCalendar = renderCalendar;
+
+/**
+ * Re-render the calendar using the last received data.
+ * Used to update the "today" indicator at midnight without needing new WebSocket data.
+ */
+function refreshCalendarView() {
+    if (_lastCalendarData) {
+        console.log('📅 Re-rendering calendar (day change detected)');
+        renderCalendar(_lastCalendarData);
+    }
+}
+
+window.refreshCalendarView = refreshCalendarView;
