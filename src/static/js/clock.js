@@ -3,11 +3,24 @@
  * Handles time and date display updates
  */
 
+// Track the current date to detect day changes (midnight rollover)
+let _currentDay = new Date().getDate();
+
 /**
  * Updates the clock time and date display
  */
 function updateClock() {
     const now = new Date();
+
+    // Detect day change (midnight) and re-render calendar to update "today" indicator
+    const day = now.getDate();
+    if (day !== _currentDay) {
+        _currentDay = day;
+        console.log('🕛 Day changed, refreshing calendar view');
+        if (window.refreshCalendarView) {
+            window.refreshCalendarView();
+        }
+    }
 
     // Check if we're in night mode
     const isNightMode = window.getCurrentMode && window.getCurrentMode() === window.KioskMode.NIGHT;

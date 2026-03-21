@@ -167,10 +167,6 @@ const CssClass = Object.freeze({
 
     // Calendar
     CALENDAR_EVENT: 'calendar-event',
-    CALENDAR_EVENT_REJDY: 'calendar-event-rejdy',
-    CALENDAR_EVENT_ZUZ: 'calendar-event-zuz',
-    CALENDAR_EVENT_CZ: 'calendar-event-cz',
-    CALENDAR_EVENT_SK: 'calendar-event-sk',
     CALENDAR_EVENT_TIME: 'calendar-event-time',
     CALENDAR_EVENT_TITLE: 'calendar-event-title',
     CALENDAR_NO_EVENTS: 'calendar-no-events'
