@@ -59,6 +59,7 @@ function applyKioskMode() {
     const topContainer = document.querySelector(Selector.TOP_CONTAINER);
     const bottomContainer = document.querySelector(Selector.BOTTOM_CONTAINER);
     const mapRects = document.querySelectorAll(Selector.MAP_RECTS);
+    const nhlRect = document.querySelector(Selector.NHL_RECT);
     const clockRect = document.querySelector(Selector.CLOCK_RECT);
     const otherBottomRects = document.querySelectorAll(Selector.OTHER_BOTTOM_RECTS);
 
@@ -72,19 +73,20 @@ function applyKioskMode() {
         bottomContainer.style.display = '';
     }
     mapRects.forEach(el => el.style.display = '');
+    // NHL panel is opt-in per mode (day only); hide on every transition and let
+    // updateNhlSlot() reveal it when appropriate
+    if (nhlRect) nhlRect.style.display = 'none';
     otherBottomRects.forEach(el => el.style.display = '');
     if (clockRect) clockRect.classList.remove(CssClass.NIGHT_MODE_CLOCK);
 
     if (mode === KioskMode.MORNING) {
-        // Show everything (default)
+        // Show everything (default) — NHL stays hidden so the 4 cards fill the row
         console.log('🌅 Morning mode: Full dashboard');
     } else if (mode === KioskMode.DAY) {
-        // Hide maps, show only calendars (each taking half width)
+        // Hide maps; calendar + todoist (+ NHL when the Finals are live) share the row
         console.log('☀️ Day mode: Calendars only');
         mapRects.forEach(el => el.style.display = 'none');
-        if (topContainer) {
-            topContainer.style.gridTemplateColumns = '1fr 1fr';
-        }
+        updateNhlSlot();
     } else if (mode === KioskMode.NIGHT) {
         // Show only clock on black background
         console.log('🌙 Night mode: Clock only');
@@ -96,7 +98,37 @@ function applyKioskMode() {
     }
 }
 
+/**
+ * Show/hide the NHL panel for the current mode and reflow the top row.
+ *
+ * Only appears in day mode while a Stanley Cup Final is live (window.nhlActive):
+ *   - live  → 3 columns: calendar | todoist | NHL
+ *   - off   → 2 columns: calendar | todoist
+ * Hidden entirely in morning/night. Called both on mode changes and whenever
+ * fresh NHL data arrives (so it can appear/disappear mid-day).
+ */
+function updateNhlSlot() {
+    const nhlRect = document.querySelector(Selector.NHL_RECT);
+    const topContainer = document.querySelector(Selector.TOP_CONTAINER);
+    if (!nhlRect || !topContainer) return;
+
+    if (currentMode !== KioskMode.DAY) {
+        nhlRect.style.display = 'none';
+        return;
+    }
+
+    if (window.nhlActive) {
+        // explicit value — '' would fall back to the .nhl-rect { display:none } default
+        nhlRect.style.display = 'block';
+        topContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    } else {
+        nhlRect.style.display = 'none';
+        topContainer.style.gridTemplateColumns = '1fr 1fr';
+    }
+}
+
 // Export for use in other modules
 window.getCurrentMode = getCurrentMode;
 window.applyKioskMode = applyKioskMode;
+window.updateNhlSlot = updateNhlSlot;
 

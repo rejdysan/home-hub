@@ -1,13 +1,47 @@
+/* ============================================================================
+   Home Hub — "Midnight Console" theme
+   Bento-style dashboard for a 24" kiosk display on Raspberry Pi 5.
+
+   Design system:
+   - Near-black canvas with aurora glows + dot-grid texture
+   - Every panel is dark; identity comes from a per-panel accent color
+     (--panel-accent) shown as a glowing top hairline + tinted icons
+   - Weather mood = colored aura on the card, not a full background flip
+   - Performance: no backdrop-filter, animations are transform/opacity only
+   ============================================================================ */
+
 :root {
-    --bg: #0b0f1a;
-    --card: #161b2c;
-    --text: #f8fafc;
+    --bg: #05070d;
+    --card-grad: linear-gradient(170deg, #11162a 0%, #0c1020 60%, #0a0d1a 100%);
+    --card-solid: #11162a;
+    --text: #f1f5f9;
+    --text-dim: #8b9bb4;
+    --text-faint: #5b6b85;
     --accent: #38bdf8;
-    --border: #2d3748;
-    --glass: rgba(255, 255, 255, 0.05);
+    --accent-violet: #a78bfa;
+    --accent-emerald: #34d399;
+    --accent-red: #ff6b5e;
+    --border: rgba(148, 163, 184, 0.12);
+    --border-strong: rgba(148, 163, 184, 0.25);
+    --glass: rgba(255, 255, 255, 0.04);
     --danger: #ef4444;
     --success: #22c55e;
-    --cpu-color: #facc15; /* Yellow */
+    --warning: #facc15;
+    --cpu-color: #facc15;
+    --ram-color: #c084fc;
+    --disk-color: #34d399;
+    --net-down-color: #60a5fa;
+    --net-up-color: #fb923c;
+    --radius-card: 24px;
+    --radius-inner: 16px;
+    --shadow-card: 0 14px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Registered so gauge fills animate smoothly when the value changes */
+@property --p {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 0;
 }
 
 * {
@@ -19,9 +53,16 @@ body, html {
     padding: 0;
     width: 100vw;
     height: 100vh;
-    background: var(--bg);
+    background:
+        radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1.5px),
+        radial-gradient(1300px 800px at 92% -15%, rgba(167, 139, 250, 0.13), transparent 60%),
+        radial-gradient(1100px 750px at -10% 115%, rgba(56, 189, 248, 0.12), transparent 60%),
+        radial-gradient(900px 500px at 50% 120%, rgba(52, 211, 153, 0.05), transparent 60%),
+        var(--bg);
+    background-size: 26px 26px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
     color: var(--text);
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
     overflow: hidden;
 }
 
@@ -30,8 +71,8 @@ body, html {
     flex-direction: column;
     width: 100%;
     height: 100vh;
-    padding: 15px;
-    gap: 15px;
+    padding: 16px;
+    gap: 16px;
     box-sizing: border-box;
 }
 
@@ -40,7 +81,7 @@ body, html {
     min-height: 0;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
+    gap: 16px;
 }
 
 .bottom-container {
@@ -48,90 +89,278 @@ body, html {
     min-height: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
+    gap: 16px;
 }
+
+/* ============================================================================
+   Cards
+   ============================================================================ */
 
 .rect {
-    background: var(--card);
-    border-radius: 24px;
+    --panel-accent: rgba(148, 163, 184, 0.4);
+    background: var(--card-grad);
+    border-radius: var(--radius-card);
     border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
     overflow: hidden;
     position: relative;
-    transition: background 0.5s ease;
+    animation: card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-/* Weather Mood Classes */
-.bg-clear-day {
-    background: linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%) !important;
-    color: #1a202c !important;
+/* Glowing accent hairline along the top edge of each panel */
+.rect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 28px;
+    right: 28px;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--panel-accent), transparent);
+    opacity: 0.9;
+    z-index: 20;
+    pointer-events: none;
 }
+
+/* Per-panel accent colors */
+.top-container .rect:nth-child(1),
+.top-container .rect:nth-child(2) { --panel-accent: var(--accent); }
+.rect.calendar-rect               { --panel-accent: var(--accent-violet); }
+.rect.todoist-rect                { --panel-accent: var(--accent-red); }
+.rect.nhl-rect                    { --panel-accent: #f5c542; } /* Cup gold */
+.rect.bottom-left                 { --panel-accent: rgba(241, 245, 249, 0.5); }
+/* :where() keeps specificity at zero so the .bg-* mood classes can override */
+:where(#weather-rect)             { --panel-accent: var(--accent); }
+.rect.transport-panel             { --panel-accent: var(--accent-emerald); }
+
+/* Staggered entrance on page load */
+.top-container .rect:nth-child(1) { animation-delay: 0.05s; }
+.top-container .rect:nth-child(2) { animation-delay: 0.12s; }
+.top-container .rect:nth-child(3) { animation-delay: 0.19s; }
+.top-container .rect:nth-child(4) { animation-delay: 0.26s; }
+.top-container .rect:nth-child(5) { animation-delay: 0.30s; }
+.bottom-container .rect:nth-child(1) { animation-delay: 0.33s; }
+.bottom-container .rect:nth-child(2) { animation-delay: 0.40s; }
+.bottom-container .rect:nth-child(3) { animation-delay: 0.47s; }
+
+@keyframes card-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ============================================================================
+   Shared animations
+   ============================================================================ */
+
+@keyframes value-pop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.14); filter: brightness(1.6); }
+    100% { transform: scale(1); filter: none; }
+}
+
+.value-pop {
+    display: inline-block;
+    animation: value-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.fc-col {
+    animation: fade-in-up 0.45s ease backwards;
+    animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* Bus/todo items only animate when explicitly marked by JS:
+   - .bus-enter / .todo-enter on genuinely new entries
+   - .shift-up on the bus list when the earliest departure drops off
+   - .todo-exit on removed tasks */
+.bus-enter {
+    animation: fade-in-up 0.45s ease backwards;
+    animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+.todo-enter {
+    animation: fade-in-up 0.4s ease backwards;
+}
+
+@keyframes list-shift-up {
+    from { transform: translateY(var(--shift, 44px)); }
+    to   { transform: none; }
+}
+
+.bus-list.shift-up {
+    animation: list-shift-up 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes todo-exit {
+    from {
+        opacity: 1;
+        max-height: 80px;
+    }
+    to {
+        opacity: 0;
+        transform: translateX(12px);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin: 0;
+        border-width: 0;
+    }
+}
+
+.todo-exit {
+    overflow: hidden;
+    pointer-events: none;
+    animation: todo-exit 0.35s ease forwards;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 4px var(--success); opacity: 1; }
+    50%      { box-shadow: 0 0 14px var(--success); opacity: 0.85; }
+}
+
+/* ============================================================================
+   Weather mood auras — dark card stays, mood shows as a colored glow
+   ============================================================================ */
+
+.bg-clear-day {
+    background:
+        radial-gradient(900px 480px at 85% -25%, rgba(251, 191, 36, 0.30), transparent 60%),
+        radial-gradient(500px 300px at 0% 110%, rgba(251, 146, 60, 0.12), transparent 60%),
+        var(--card-grad) !important;
+    --panel-accent: #fbbf24;
+}
+.bg-clear-day #main-icon { color: #fbbf24; }
 
 .bg-clear-night {
-    background: linear-gradient(135deg, #0F2027 0%, #2C5364 100%) !important;
-    color: #f8fafc !important;
+    background:
+        radial-gradient(900px 480px at 85% -25%, rgba(99, 102, 241, 0.35), transparent 60%),
+        radial-gradient(500px 300px at 0% 110%, rgba(56, 189, 248, 0.10), transparent 60%),
+        var(--card-grad) !important;
+    --panel-accent: #818cf8;
 }
+.bg-clear-night #main-icon { color: #c7d2fe; }
 
 .bg-cloudy {
-    background: linear-gradient(135deg, #3E5151 0%, #DECBA4 100%) !important;
-    color: #1a202c !important;
+    background:
+        radial-gradient(900px 480px at 85% -25%, rgba(148, 163, 184, 0.28), transparent 60%),
+        var(--card-grad) !important;
+    --panel-accent: #94a3b8;
 }
+.bg-cloudy #main-icon { color: #cbd5e1; }
 
 .bg-rainy {
-    background: linear-gradient(135deg, #4B6CB7 0%, #182848 100%) !important;
-    color: #f8fafc !important;
+    background:
+        radial-gradient(900px 480px at 85% -25%, rgba(59, 130, 246, 0.34), transparent 60%),
+        radial-gradient(500px 300px at 0% 110%, rgba(56, 189, 248, 0.12), transparent 60%),
+        var(--card-grad) !important;
+    --panel-accent: #60a5fa;
 }
+.bg-rainy #main-icon { color: #93c5fd; }
 
 .bg-snowy {
-    background: linear-gradient(135deg, #E6E9F0 0%, #EEF1F5 100%) !important;
-    color: #2d3748 !important;
+    background:
+        radial-gradient(900px 480px at 85% -25%, rgba(226, 232, 240, 0.30), transparent 60%),
+        var(--card-grad) !important;
+    --panel-accent: #e2e8f0;
 }
+.bg-snowy #main-icon { color: #f1f5f9; }
 
 .bg-storm {
-    background: linear-gradient(135deg, #141E30 0%, #243B55 100%) !important;
-    color: #f8fafc !important;
+    background:
+        radial-gradient(900px 480px at 85% -25%, rgba(168, 85, 247, 0.34), transparent 60%),
+        radial-gradient(500px 300px at 0% 110%, rgba(250, 204, 21, 0.10), transparent 60%),
+        var(--card-grad) !important;
+    --panel-accent: #c084fc;
 }
+.bg-storm #main-icon { color: #e9d5ff; }
 
-/* --- 1. Map Tags & Iframes --- */
+/* ============================================================================
+   1. Maps
+   ============================================================================ */
+
 .map-tag {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    background: rgba(0, 0, 0, 0.85);
+    top: 14px;
+    right: 14px;
+    background: rgba(5, 7, 13, 0.92);
     color: white;
-    padding: 8px 14px;
-    border-radius: 10px;
+    padding: 9px 16px 9px 14px;
+    border-radius: 14px;
     z-index: 10;
-    border: 1px solid var(--glass);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
     text-align: right;
+}
+
+.map-tag::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    margin-right: 8px;
+    vertical-align: 2px;
 }
 
 .tag-main {
     font-size: 0.75rem;
     font-weight: 800;
-    display: block;
+    display: inline-block;
+    letter-spacing: 0.3px;
 }
 
 .tag-sub {
     font-size: 0.6rem;
-    color: #94a3b8;
-    font-weight: 400;
-    opacity: 0.7;
+    color: var(--text-dim);
+    font-weight: 500;
+    opacity: 0.8;
+    display: block;
+    margin-top: 2px;
 }
 
 iframe {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     border: none;
-    filter: contrast(1.1) brightness(0.9);
+    filter: contrast(1.05) brightness(0.85) saturate(0.9) hue-rotate(-8deg);
 }
 
-/* --- 2. Combo Card (Clock Top / System Bottom) --- */
+/* Double-buffered iframe refresh: the incoming frame loads invisibly on
+   top of the old one, then cross-fades in (see hardRefreshIframe) */
+.iframe-buffer {
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    z-index: 2; /* above the old frame, below the .map-tag overlay (z 10) */
+}
+
+.iframe-buffer-visible {
+    opacity: 1;
+}
+
+/* ============================================================================
+   2. Clock + System panel
+   ============================================================================ */
+
 .combo-container {
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 100%;
-    background: radial-gradient(circle, #1e293b, #0b0f1a);
+    background: radial-gradient(circle at 50% 26%, rgba(56, 189, 248, 0.08), transparent 60%);
 }
 
 .clock-half {
@@ -141,43 +370,88 @@ iframe {
     justify-content: center;
     align-items: center;
     background: transparent;
+    position: relative;
 }
 
 #clock-time {
-    font-size: 7rem;
+    font-size: 7.2rem;
     font-weight: 900;
-    color: var(--text);
-    letter-spacing: -3px;
+    letter-spacing: -4px;
     line-height: 1;
-    margin-bottom: 10px;
+    /* horizontal padding gives the gradient-clipped text room for the last
+       glyph's overhang (negative letter-spacing otherwise cuts it off) */
+    padding: 0 14px;
+    margin-bottom: 14px;
+    background: linear-gradient(180deg, #ffffff 25%, #7e93b5 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 #clock-date {
-    font-size: 1.5rem;
-    color: #94a3b8;
-    margin-bottom: 4px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    padding: 6px 18px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--glass);
 }
 
 #nameday-info {
-    font-size: 1.2rem;
-    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-faint);
+    margin-top: 10px;
+    letter-spacing: 0.3px;
+}
+
+/* Health chips pinned to the top-right corner of the panel */
+.health-row {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+}
+
+.health-item {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+}
+
+.health-item .status-dot {
+    position: static;
+    display: inline-block;
+    width: 6px;
+    height: 6px;
 }
 
 .system-half {
     flex: 3;
-    padding: 12px;
+    padding: 14px;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
-    align-items: center;
+    align-items: stretch;
     background: transparent;
 }
 
 .sys-card {
-    background: var(--glass);
+    background: var(--card-solid);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    height: 100%;
+    border-radius: var(--radius-inner);
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -185,47 +459,59 @@ iframe {
     align-items: center;
     text-align: center;
     position: relative;
-    padding: 5px;
+    padding: 10px 5px;
     overflow: hidden;
 }
 
-.sys-icon-wrapper {
-    margin-bottom: 4px;
-    opacity: 1;
+/* Conic-gradient gauge ring (fill driven by --p, color by --gc) */
+.gauge {
+    --gc: var(--accent);
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background:
+        radial-gradient(closest-side, var(--card-solid) 76%, transparent 77% 100%),
+        conic-gradient(var(--gc) calc(var(--p) * 1%), rgba(255, 255, 255, 0.07) 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 7px;
+    transition: --p 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sys-label {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 2px;
-}
-
-.sys-val {
-    font-size: 2.2rem;
+.gauge-val {
+    font-size: 0.98rem;
     font-weight: 900;
     line-height: 1;
 }
 
+#gauge-cpu  { --gc: var(--cpu-color); }
+#gauge-ram  { --gc: var(--ram-color); }
+#gauge-disk { --gc: var(--disk-color); }
+
+.sys-label {
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    margin-bottom: 2px;
+}
+
 .sys-sub {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    opacity: 0.8;
+    color: var(--text-faint);
     margin-top: 2px;
 }
 
-.cpu-text {
-    color: var(--cpu-color);
-}
+.cpu-text  { color: var(--cpu-color); }
+.ram-text  { color: var(--ram-color); }
+.disk-text { color: var(--disk-color); }
 
-.ram-text {
-    color: #a855f7;
-}
-
-.disk-text {
-    color: #22c55e;
+/* Network card (no gauge — paired up/down readout) */
+.net-icon-wrapper {
+    margin-bottom: 6px;
 }
 
 .net-values-container {
@@ -234,8 +520,9 @@ iframe {
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 2.2rem;
-    max-height: 2.2rem;
+    min-height: 2.1rem;
+    max-height: 2.1rem;
+    position: relative;
 }
 
 .net-value-item {
@@ -246,7 +533,6 @@ iframe {
     justify-content: center;
 }
 
-/* Vertical divider between download and upload */
 .net-value-item + .net-value-item::before {
     content: '';
     position: absolute;
@@ -254,228 +540,446 @@ iframe {
     top: 50%;
     transform: translate(-50%, -50%);
     width: 1px;
-    height: 1.5rem;
+    height: 1.4rem;
     background: #475569;
     opacity: 0.4;
 }
 
-.net-values-container {
-    position: relative;
-}
-
-/* Download arrow - green */
-.net-value-item:first-child .net-arrow {
-    color: #3b82f6;
-    font-size: 1rem;
-    font-weight: 700;
-    opacity: 0.8;
-    flex-shrink: 0;
-}
-
-/* Upload arrow - orange */
-.net-value-item:last-child .net-arrow {
-    color: #f97316;
-    font-size: 1rem;
-    font-weight: 700;
-    opacity: 0.8;
-    flex-shrink: 0;
-}
-
-/* Download number - green */
-.net-value-item:first-child .net-number {
-    color: #3b82f6;
-    font-size: 1.6rem;
-    font-weight: 900;
-    text-align: center;
-    line-height: 1;
-}
-
-/* Upload number - orange */
-.net-value-item:last-child .net-number {
-    color: #f97316;
-    font-size: 1.6rem;
-    font-weight: 900;
-    text-align: center;
-    line-height: 1;
-}
-
-/* Responsive font sizes for network numbers */
-.net-number.size-large {
-    font-size: 1.3rem;
-}
-
-.net-number.size-xlarge {
-    font-size: 1.1rem;
-}
-
-.net-number.size-xxlarge {
+.net-value-item .net-arrow {
     font-size: 0.95rem;
+    font-weight: 700;
+    opacity: 0.85;
+    flex-shrink: 0;
 }
 
+.net-value-item:first-child .net-arrow,
+.net-value-item:first-child .net-number {
+    color: var(--net-down-color);
+}
 
-/* --- 3. Weather Panel & Dynamic Moods --- */
+.net-value-item:last-child .net-arrow,
+.net-value-item:last-child .net-number {
+    color: var(--net-up-color);
+}
+
+.net-number {
+    font-size: 1.45rem;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1;
+}
+
+.net-number.size-large   { font-size: 1.2rem; }
+.net-number.size-xlarge  { font-size: 1.05rem; }
+.net-number.size-xxlarge { font-size: 0.9rem; }
+
+/* ============================================================================
+   3. Weather panel
+   ============================================================================ */
+
 #weather-rect {
-    background: var(--card);
-    transition: all 0.8s ease;
+    transition: background 0.8s ease;
 }
 
-/* Ensure weather text follows the mood color */
-.weather-panel, .weather-panel .w-desc, .weather-panel .stat-value, .weather-panel .fc-temp {
+.weather-panel, .weather-panel .w-desc, .weather-panel .fc-temp, .weather-panel .w-stat-val, .weather-panel .w-room-val {
     color: inherit;
-}
-
-.weather-panel .stat-label, .weather-panel .fc-date, .weather-panel .home-sub, .weather-panel .room-label {
-    color: inherit;
-    opacity: 0.7;
 }
 
 .weather-panel {
-    padding: 18px;
+    padding: 18px 24px 14px 24px;
     display: flex;
     flex-direction: column;
     height: 100%;
-    gap: 15px;
+    gap: 10px; /* uniform rhythm between all sections */
     overflow: hidden;
 }
 
-.w-section-top {
-    flex: 1 1 auto;
+/* --- Hero --- */
+.w-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.w-hero-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.w-hero-text {
+    margin-left: 4px;
+}
+
+#main-icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 14px currentColor);
+}
+
+.w-temp-main {
+    font-size: 4.2rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -3px;
+    padding-right: 6px;
+    background: linear-gradient(180deg, #ffffff 25%, #93a8c8 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.w-desc {
+    font-weight: 900;
+    font-size: 1.3rem;
+    letter-spacing: -0.3px;
+}
+
+.w-feels-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.w-updated {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-faint);
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+}
+
+/* --- Stats strip: open columns, hairline dividers, no boxes --- */
+.w-stats-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    padding: 2px 0;
+}
+
+.w-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    position: relative;
+    min-width: 0;
+}
+
+.w-stat + .w-stat::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
+}
+
+.w-stat svg {
+    width: 15px;
+    height: 15px;
+    color: var(--panel-accent, var(--accent));
+    opacity: 0.9;
+}
+
+.w-stat-val {
+    font-weight: 900;
+    font-size: 1.05rem;
+    line-height: 1.1;
+}
+
+.w-stat-val small {
+    font-size: 0.58rem;
+    font-weight: 600;
+    opacity: 0.55;
+    margin-left: 2px;
+}
+
+.w-stat-name {
+    font-size: 0.55rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--text-faint);
+}
+
+/* Hairline section separators */
+.w-rule {
+    flex-shrink: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+}
+
+/* --- 24h temperature graph --- */
+.w-graph {
+    flex: 1 1 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    overflow: hidden;
 }
 
-.w-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.w-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-}
-
-.stat-box {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.w-section-middle {
-    flex: 1 1 auto;
+.w-graph svg {
+    display: block;
+    flex: 1 1 0;
     min-height: 0;
-    overflow: hidden;
+    width: 100%;
 }
 
+.wg-temp {
+    fill: none;
+    stroke: var(--panel-accent, var(--accent));
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.25));
+}
+
+.wg-feels {
+    fill: none;
+    stroke: rgba(148, 163, 184, 0.75);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    /* pathLength=1, so dash units are fractions of the whole line */
+    stroke-dasharray: 0.014 0.009;
+}
+
+.wg-grad-top {
+    stop-color: var(--panel-accent, var(--accent));
+    stop-opacity: 0.26;
+}
+
+.wg-grad-bottom {
+    stop-color: var(--panel-accent, var(--accent));
+    stop-opacity: 0;
+}
+
+.wg-now-line {
+    stroke: rgba(241, 245, 249, 0.35);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+}
+
+.wg-now-dot {
+    fill: #ffffff;
+}
+
+.wg-now-ping {
+    fill: none;
+    stroke: var(--panel-accent, var(--accent));
+    stroke-width: 1.5;
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: wg-ping 2.4s ease-out infinite;
+}
+
+@keyframes wg-ping {
+    0%        { transform: scale(0.6); opacity: 1; }
+    70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+.wg-time {
+    fill: var(--text-faint);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.wg-peak {
+    fill: var(--text-dim);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+/* Draw-in choreography on fresh data */
+.wg.wg-anim .wg-temp {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: wg-draw 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+}
+
+@keyframes wg-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+.wg.wg-anim .wg-area,
+.wg.wg-anim .wg-feels,
+.wg.wg-anim .wg-now-line,
+.wg.wg-anim .wg-now-dot,
+.wg.wg-anim .wg-now-ping,
+.wg.wg-anim .wg-peak {
+    opacity: 0;
+    animation: wg-fade 0.7s ease 1.0s forwards;
+}
+
+@keyframes wg-fade {
+    to { opacity: 1; }
+}
+
+.wg-legend {
+    flex: none;
+    height: 12px;
+    margin-bottom: 2px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-right: 2px;
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.wg-leg-temp::before,
+.wg-leg-feels::before {
+    content: '';
+    display: inline-block;
+    width: 11px;
+    height: 2px;
+    border-radius: 1px;
+    margin-right: 5px;
+    vertical-align: 3px;
+    background: var(--panel-accent, var(--accent));
+}
+
+.wg-leg-feels::before {
+    background: repeating-linear-gradient(90deg,
+        rgba(148, 163, 184, 0.8) 0 3px, transparent 3px 5px);
+}
+
+/* --- Forecast: open columns with temperature range bars --- */
 .w-forecast-grid {
+    flex: 1.05 1 0;
+    min-height: 0;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-    height: 100%;
     overflow: hidden;
 }
 
-.fc-day-box {
-    text-align: center;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+.fc-col {
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    padding: 4px;
+    justify-content: center;
+    gap: 3px;
     min-height: 0;
-    overflow: hidden;
+    min-width: 0;
 }
 
-.w-section-bottom {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow: hidden;
-}
-
-.home-sub, .fc-date, .stat-label {
-    font-size: 0.7rem;
+.fc-date {
+    font-size: 0.6rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
 }
 
-.stat-value, .fc-temp {
+.fc-col-today .fc-date {
+    color: var(--panel-accent, var(--accent));
+}
+
+.fc-temp {
     font-weight: 900;
+    font-size: 1.05rem;
 }
 
-.home-grid-layout {
-    display: grid;
-    grid-template-columns: 0.8fr 0.8fr 2.4fr;
-    gap: 12px;
-    height: 100%;
-    min-height: 0;
+.fc-temp-min {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-dim);
 }
 
-.sensor-card-mini {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 18px;
-    padding: 12px;
+/* Day's min–max span positioned within the week's full range */
+.fc-range {
+    width: 68%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
     position: relative;
+    overflow: hidden;
+    margin: 3px 0;
+}
+
+.fc-range-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #38bdf8, #fbbf24);
+}
+
+/* --- Indoor sensors strip --- */
+.w-home-strip {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-top: 2px;
+}
+
+.w-room {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    min-height: 0;
-    overflow: hidden;
+    gap: 3px;
+    position: relative;
+    min-width: 0;
 }
 
-.big-val {
-    font-size: clamp(1.2rem, 3vw, 2rem);
-    font-weight: 950;
-    line-height: 1;
-    letter-spacing: -2px;
-    display: inline-block;
+.w-room + .w-room {
+    padding-left: 20px;
 }
 
-.unit-label {
-    font-size: 0.7rem;
-    opacity: 0.6;
-    font-weight: 600;
-    margin-left: 2px;
-    display: inline-block;
-}
-
-.balcony-inner-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-    height: 100%;
-    min-height: 0;
-    align-items: center;
-}
-
-.balc-item {
-    text-align: center;
-    min-height: 0;
-}
-
-.room-label {
+.w-room + .w-room::before {
+    content: '';
     position: absolute;
-    top: 12px;
-    left: 12px;
-    font-size: 0.65rem;
+    left: 0;
+    top: 10%;
+    bottom: 10%;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, var(--border-strong), transparent);
+}
+
+.w-room-wide {
+    flex: 1.9;
+}
+
+.w-room-name {
+    font-size: 0.58rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.4px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.w-room-name .status-dot {
+    position: static;
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+}
+
+.w-room-val {
+    font-size: 1.5rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
+
+.w-room-val small {
+    font-size: 0.6rem;
+    font-weight: 600;
+    opacity: 0.55;
+    margin-left: 2px;
+    letter-spacing: 0;
+}
+
+.w-room-vals {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
 }
 
 .status-dot {
@@ -487,12 +991,12 @@ iframe {
     border-radius: 50%;
     display: inline-block;
     transition: background-color 0.3s ease;
-    background-color: var(--danger); /* Default to red */
+    background-color: var(--danger);
 }
 
 .status-online {
     background: var(--success) !important;
-    box-shadow: 0 0 8px var(--success);
+    animation: pulse-glow 2.6s ease-in-out infinite;
 }
 
 .status-offline {
@@ -500,12 +1004,15 @@ iframe {
     box-shadow: 0 0 8px var(--danger);
 }
 
-/* --- 6. Transport Panel --- */
+/* ============================================================================
+   4. Transport panel
+   ============================================================================ */
+
 .transport-panel {
-    padding: 15px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .transport-section {
@@ -516,26 +1023,37 @@ iframe {
 }
 
 .transport-header {
-    margin: 0 0 8px 0;
-    font-size: 0.8rem;
+    margin: 0 0 10px 0;
+    font-size: 0.72rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #94a3b8;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
+}
+
+.transport-header svg {
+    color: var(--accent-emerald);
+    filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.6));
+}
+
+/* Accent rule after the station name */
+.transport-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border-strong), transparent);
 }
 
 .bus-list {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     min-height: 0;
     overflow: hidden;
-    padding: 0 4px;
 }
 
 .bus-loading {
@@ -547,13 +1065,16 @@ iframe {
 
 .bus-item {
     display: grid;
-    grid-template-columns: 38px 1fr auto auto;
-    gap: 8px;
+    grid-template-columns: 42px 1fr auto auto;
+    gap: 10px;
     align-items: center;
-    padding: 6px 10px;
-    margin: 0 2px;
-    background: rgba(255, 255, 255, 0.04);
-    border-radius: 6px;
+    /* the stripe is stretched by flex:1, but the grid's row track is
+       content-sized and pins to the top by default — center it */
+    align-content: center;
+    padding: 6px 12px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     border-left: 3px solid var(--accent);
     flex: 1;
     min-height: 0;
@@ -561,16 +1082,21 @@ iframe {
 
 .bus-line {
     color: white;
-    font-weight: 700;
-    font-size: 0.8rem;
-    padding: 2px 0;
-    border-radius: 4px;
-    text-align: center;
+    font-weight: 900;
+    font-size: 0.82rem;
+    line-height: 1;
+    min-height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    letter-spacing: 0.5px;
 }
 
 .bus-direction {
-    font-size: 0.75rem;
-    font-weight: 500;
+    font-size: 0.78rem;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -581,10 +1107,11 @@ iframe {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    font-family: monospace;
-    font-size: 0.65rem;
-    line-height: 1.2;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.62rem;
+    line-height: 1.3;
     min-width: 80px;
+    color: var(--text-dim);
 }
 
 .bus-time-predicted {
@@ -592,32 +1119,28 @@ iframe {
 }
 
 .bus-time-scheduled {
-    color: #64748b;
+    color: var(--text-faint);
 }
 
 .bus-mins {
-    text-align: right;
-    min-width: 40px;
+    min-width: 46px;
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
 }
 
 .bus-mins-value {
-    font-size: 1rem;
-    font-weight: 800;
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    line-height: 1;
 }
 
 .bus-mins-unit {
     font-size: 0.55rem;
-    font-weight: normal;
-    opacity: 0.7;
-}
-
-.bus-urgent {
-    animation: pulse-urgent 1s ease-in-out infinite;
-}
-
-@keyframes pulse-urgent {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    font-weight: 600;
+    opacity: 0.6;
+    margin-left: 1px;
 }
 
 .bus-no-data {
@@ -627,68 +1150,30 @@ iframe {
     text-align: center;
 }
 
-.bus-number {
-    background: #d00000; /* PID Red */
-    color: white;
-    font-weight: 900;
-    padding: 4px 8px;
-    border-radius: 6px;
-    min-width: 45px;
-    text-align: center;
-    margin-right: 15px;
-}
-
-.bus-dest {
-    flex-grow: 1;
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: #f8fafc;
-}
-
-.bus-time {
-    font-weight: 900;
-    font-size: 1.2rem;
-    color: var(--accent);
-}
-
-.delay-text {
-    color: var(--danger);
-    font-size: 0.7rem;
-    margin-left: 5px;
-}
-
-.pulse {
-    color: #22c55e; /* Green for NOW */
-    animation: blinker 1.5s linear infinite;
-}
-
-@keyframes blinker {
-    50% {
-        opacity: 0.3;
-    }
-}
-
 @keyframes pulse-red {
-    0% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.6;
-        transform: scale(1.05);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
+    0%   { opacity: 1; transform: scale(1); }
+    50%  { opacity: 0.6; transform: scale(1.06); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
 .bus-urgent {
     animation: pulse-red 1.5s infinite ease-in-out;
-    color: #ef4444 !important; /* Force red for urgent */
+    color: var(--danger) !important;
 }
 
-/* Night Mode Styles */
+.pulse {
+    color: var(--success);
+    animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% { opacity: 0.3; }
+}
+
+/* ============================================================================
+   5. Night mode
+   ============================================================================ */
+
 body.night-mode {
     background: #000000;
 }
@@ -702,10 +1187,15 @@ body.night-mode {
     background: #000000 !important;
     border: none !important;
     border-radius: 0 !important;
+    box-shadow: none !important;
     z-index: 1000;
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.rect.night-mode-clock::before {
+    display: none;
 }
 
 .rect.night-mode-clock .combo-container {
@@ -729,6 +1219,8 @@ body.night-mode {
 .rect.night-mode-clock #clock-time {
     font-size: 12vw;
     font-weight: 900;
+    background: none;
+    -webkit-text-fill-color: #4a5568;
     color: #4a5568;
 }
 
@@ -736,53 +1228,62 @@ body.night-mode {
     font-size: 2.5vw;
     color: #4a5568;
     opacity: 0.8;
+    border: none;
+    background: none;
+    padding: 0;
 }
 
 .rect.night-mode-clock #nameday-info {
     display: none;
 }
 
-/* Todoist Todo Lists */
+/* ============================================================================
+   6. Todoist panel — dark with red accent
+   ============================================================================ */
 
-/* Todoist brand colors */
 .rect.todoist-rect {
-    background: linear-gradient(135deg, #db4c3f 0%, #c23a2e 100%);
-    border: 1px solid rgba(219, 76, 63, 0.3);
+    background:
+        radial-gradient(800px 420px at 88% -20%, rgba(244, 63, 94, 0.20), transparent 60%),
+        var(--card-grad);
 }
 
 .todoist-header-wrapper {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 15px 8px 15px;
+    padding: 16px 18px 10px 18px;
 }
 
 .todoist-main-header {
-    font-size: 1.1rem;
+    font-size: 0.85rem;
     font-weight: 800;
     margin: 0;
     text-align: left;
-    letter-spacing: 1.5px;
-    color: #ffffff;
+    letter-spacing: 2.5px;
+    color: var(--text);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+}
+
+.todoist-main-header svg {
+    color: var(--accent-red);
+    filter: drop-shadow(0 0 6px rgba(255, 107, 94, 0.6));
 }
 
 .todoist-update-time {
-    font-size: 0.65rem;
-    opacity: 0.7;
-    font-weight: 600;
+    font-size: 0.58rem;
+    font-weight: 700;
     letter-spacing: 0.5px;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-faint);
 }
 
 .todoist-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 15px;
-    height: calc(100% - 50px);
+    gap: 12px;
+    padding: 0 18px 16px 18px;
+    height: calc(100% - 52px);
     overflow: hidden;
 }
 
@@ -798,29 +1299,29 @@ body.night-mode {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--border);
     margin-bottom: 4px;
 }
 
 .todo-header {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.68rem;
+    font-weight: 800;
     margin: 0;
-    color: #ffffff;
+    color: var(--text-dim);
     text-align: left;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
 .todo-count {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #ffffff;
-    opacity: 0.9;
-    background: rgba(255, 255, 255, 0.25);
-    padding: 2px 8px;
-    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--accent-red);
+    background: rgba(244, 63, 94, 0.14);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    padding: 2px 9px;
+    border-radius: 999px;
 }
 
 .todo-list {
@@ -828,19 +1329,15 @@ body.night-mode {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     min-height: 0;
     padding-right: 4px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
-/* Hide scrollbar for kiosk mode */
 .todo-list::-webkit-scrollbar {
     display: none;
-}
-
-.todo-list {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
 }
 
 .todo-item {
@@ -848,58 +1345,39 @@ body.night-mode {
     align-items: flex-start;
     gap: 10px;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    border-left: 3px solid rgba(255, 255, 255, 0.4);
-    transition: all 0.2s ease;
-}
-
-.todo-item:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: background 0.2s ease;
 }
 
 .todo-checkbox {
-    width: 16px;
-    height: 16px;
-    min-width: 16px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    width: 15px;
+    height: 15px;
+    min-width: 15px;
+    border: 2px solid var(--text-faint);
     border-radius: 50%;
     margin-top: 2px;
-    transition: all 0.2s ease;
-}
-
-.todo-item:hover .todo-checkbox {
-    border-color: #ffffff;
 }
 
 .todo-content {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     line-height: 1.4;
     word-wrap: break-word;
     font-weight: 500;
-    color: #ffffff;
+    color: var(--text);
 }
 
-/* Priority indicators via border color */
-.todo-item.priority-4 {
-    border-left-color: #fef3c7; /* Light yellow - Urgent */
-    background: rgba(254, 243, 199, 0.15);
-}
+/* Priority shown on the checkbox ring + a subtle row tint */
+.todo-item.priority-4 .todo-checkbox { border-color: var(--danger); box-shadow: 0 0 7px rgba(239, 68, 68, 0.5); }
+.todo-item.priority-4 { background: rgba(239, 68, 68, 0.08); }
 
-.todo-item.priority-3 {
-    border-left-color: #fca5a5; /* Light red - High */
-    background: rgba(252, 165, 165, 0.15);
-}
+.todo-item.priority-3 .todo-checkbox { border-color: var(--warning); box-shadow: 0 0 7px rgba(250, 204, 21, 0.4); }
+.todo-item.priority-3 { background: rgba(250, 204, 21, 0.06); }
 
-.todo-item.priority-2 {
-    border-left-color: #bfdbfe; /* Light blue - Medium */
-    background: rgba(191, 219, 254, 0.15);
-}
-
-.todo-item.priority-1 {
-    border-left-color: rgba(255, 255, 255, 0.3); /* White - Normal */
-}
+.todo-item.priority-2 .todo-checkbox { border-color: var(--net-down-color); }
+.todo-item.priority-2 { background: rgba(96, 165, 250, 0.06); }
 
 .todo-loading,
 .todo-empty {
@@ -911,204 +1389,137 @@ body.night-mode {
 }
 
 /* ============================================================================
-   Google Calendar - Month View Grid
+   7. Calendar — dark month grid
    ============================================================================ */
 
 .rect.calendar-rect {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
     padding: 0;
 }
 
-.calendar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    background: #ffffff;
-    border-bottom: 2px solid #e0e0e0;
-}
-
-.calendar-main-header {
-    font-size: 1.1rem;
-    font-weight: 800;
-    margin: 0;
-    text-align: left;
-    letter-spacing: 1.5px;
-    color: #1f1f1f;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.calendar-update-time {
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    color: #5f6368;
-}
-
-.calendar-scroll-container {
-    height: calc(100% - 48px);
-    overflow: hidden;
-}
-
-.calendar-container {
-    height: 100%;
-    overflow-y: auto;
-    padding: 0;
-}
-
-/* Hide scrollbar for kiosk mode */
-.calendar-container::-webkit-scrollbar {
-    display: none;
-}
-
-.calendar-container {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
-
-/* Month Grid Structure */
+.calendar-scroll-container,
+.calendar-container,
 .calendar-month-grid {
+    height: 100%;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    background: #ffffff;
-    border-radius: 0;
-    overflow: hidden;
-    position: relative;
+    min-height: 0;
 }
 
 .calendar-month-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 15px;
-    background: rgba(255, 255, 255, 1);
-    border-bottom: 2px solid #e0e0e0;
+    padding: 14px 18px 10px 18px;
 }
 
 .calendar-month-title {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #1f1f1f;
-    letter-spacing: 0.5px;
-}
-
-.calendar-legend {
-    display: flex;
-    gap: 20px;
-}
-
-.calendar-legend-column {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.calendar-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #5f6368;
-}
-
-.legend-prefix {
+    font-size: 0.95rem;
     font-weight: 800;
-    font-size: 0.7rem;
-    color: #1f1f1f;
-    min-width: 28px;
+    color: var(--text);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.calendar-month-title::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+    background: var(--accent-violet);
+    box-shadow: 0 0 8px var(--accent-violet);
+    margin-right: 10px;
+    vertical-align: 1px;
 }
 
 /* Weekday Headers */
 .calendar-weekday-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    background: #f5f5f5;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border);
 }
 
 .calendar-weekday {
     text-align: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #5f6368;
-    padding: 8px 4px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: var(--text-faint);
+    padding: 4px 4px 8px 4px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1.5px;
 }
 
-/* Days Grid Wrapper */
+/* Weekend headers slightly tinted */
+.calendar-weekday:nth-child(6),
+.calendar-weekday:nth-child(7) {
+    color: var(--accent-violet);
+    opacity: 0.85;
+}
+
 .calendar-days-wrapper {
     flex: 1;
     position: relative;
     overflow: hidden;
+    min-height: 0;
 }
 
-/* Days Grid */
 .calendar-days-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     grid-auto-rows: 1fr;
     height: 100%;
     gap: 1px;
-    background: #e0e0e0;
+    background: rgba(148, 163, 184, 0.08);
 }
 
-/* Individual Day Cell */
 .calendar-day-cell {
-    background: #ffffff;
+    background: #0d1120;
     padding: 4px;
     min-height: 60px;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    transition: background 0.2s ease;
 }
 
-.calendar-day-cell:hover {
-    background: #f8f9fa;
-}
-
-/* Day Number */
 .calendar-day-number {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #1f1f1f;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-dim);
     padding: 2px 4px;
     text-align: left;
     line-height: 1;
 }
 
-/* Other month's days (grayed out) */
 .calendar-day-other-month {
-    background: #fafafa;
-    opacity: 0.5;
+    background: #090c17;
+    opacity: 0.55;
 }
 
 .calendar-day-other-month .calendar-day-number {
-    color: #9e9e9e;
+    color: var(--text-faint);
 }
 
 /* Today highlighting */
+.calendar-day-today {
+    background: rgba(167, 139, 250, 0.10);
+    box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.45);
+}
+
 .calendar-day-today .calendar-day-number {
-    background: #1a73e8;
-    color: #ffffff;
+    background: var(--accent-violet);
+    color: #0d1120;
     border-radius: 50%;
     width: 18px;
     height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 0.7rem;
+    font-weight: 800;
+    font-size: 0.68rem;
+    box-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
 }
 
-/* Events Container within Day Cell */
 .calendar-day-events {
     display: flex;
     flex-direction: column;
@@ -1118,30 +1529,22 @@ body.night-mode {
     padding-top: 0;
 }
 
-/* Add padding when events are pushed down by spanning events */
 .calendar-day-events[style*="margin-top"] {
     padding-top: 8px;
 }
 
 /* Timed Event with Dot (single-day with specific time) */
 .calendar-event-timed {
-    font-size: 0.65rem;
+    font-size: 0.63rem;
     padding: 2px 4px;
     display: flex;
     align-items: center;
     gap: 4px;
-    color: #1f1f1f;
+    color: var(--text);
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.calendar-event-timed:hover {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 3px;
 }
 
 .event-dot {
@@ -1150,6 +1553,7 @@ body.night-mode {
     border-radius: 50%;
     background: #4285f4;
     flex-shrink: 0;
+    box-shadow: 0 0 5px currentColor;
 }
 
 .event-text {
@@ -1158,7 +1562,6 @@ body.night-mode {
     white-space: nowrap;
 }
 
-/* Events Overlay Container */
 .calendar-events-overlay {
     position: absolute;
     top: 0;
@@ -1169,67 +1572,328 @@ body.night-mode {
     z-index: 10;
 }
 
-/* Multi-Day Spanning Event Bar */
+/* Multi-Day Spanning Event Bar (colors set inline by calendar.js) */
 .calendar-event-spanning {
     position: absolute;
-    font-size: 0.65rem;
+    font-size: 0.63rem;
     padding: 3px 8px;
-    background: rgba(66, 133, 244, 0.25);
-    color: #1f1f1f;
-    font-weight: 600;
+    background: rgba(66, 133, 244, 0.85);
+    color: #ffffff;
+    font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    border-radius: 4px;
+    border-radius: 5px;
     border-left: 3px solid #4285f4;
     height: 20px;
     display: flex;
     align-items: center;
     pointer-events: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-.calendar-event-spanning:hover {
-    filter: brightness(1.1);
-}
-
-/* Arrow indicators removed - all events now have rounded corners */
-
-/* Past event styling - faded/transparent */
+/* Past event styling - faded */
 .event-past {
     opacity: 0.4;
+    box-shadow: none;
 }
 
-/* Full opacity for current and future events (override default) */
 .calendar-event-spanning:not(.event-past),
 .calendar-event-timed:not(.event-past) {
     opacity: 1;
 }
 
-
-/* "+X more" indicator */
 .calendar-event-more {
-    font-size: 0.6rem;
-    color: #5f6368;
-    font-weight: 600;
+    font-size: 0.58rem;
+    color: var(--text-faint);
+    font-weight: 700;
     padding: 2px 4px;
     text-align: center;
-    cursor: pointer;
-    transition: color 0.2s ease;
 }
 
-.calendar-event-more:hover {
-    color: #1a73e8;
-}
-
-/* Loading State */
 .calendar-loading {
     text-align: center;
     padding: 40px 20px;
-    opacity: 0.7;
+    opacity: 0.6;
     font-style: italic;
     font-size: 0.85rem;
-    color: #1f1f1f;
+    color: var(--text-dim);
 }
 
+/* ============================================================================
+   8. NHL Stanley Cup Final panel
+   ============================================================================ */
+
+/* Hidden by default; kiosk.js reveals it in day mode while the Finals are live */
+.rect.nhl-rect {
+    display: none;
+    background:
+        radial-gradient(820px 420px at 50% -25%, rgba(245, 197, 66, 0.16), transparent 60%),
+        var(--card-grad);
+}
+
+.nhl-panel {
+    height: 100%;
+    padding: 16px 20px 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+}
+
+.nhl-loading {
+    margin: auto;
+    opacity: 0.5;
+    font-style: italic;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.nhl-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nhl-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.nhl-title svg {
+    width: 17px;
+    height: 17px;
+    color: #f5c542;
+    filter: drop-shadow(0 0 7px rgba(245, 197, 66, 0.6));
+}
+
+.nhl-updated {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-faint);
+}
+
+/* --- Matchup hero --- */
+.nhl-matchup {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.nhl-team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.nhl-logo-wrap {
+    width: 132px;
+    height: 132px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nhl-logo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+}
+
+.nhl-logo-fallback {
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.9rem;
+    letter-spacing: 0.5px;
+    background: var(--glass);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+}
+
+.nhl-team-name {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.nhl-place {
+    font-size: 0.95rem;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+}
+
+.nhl-common {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+}
+
+/* Champion glow when a team has clinched */
+.nhl-champ .nhl-logo-wrap {
+    filter: drop-shadow(0 0 14px rgba(245, 197, 66, 0.7));
+}
+
+.nhl-champ .nhl-place {
+    color: #f5c542;
+}
+
+.nhl-score {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0 6px;
+}
+
+.nhl-score-num {
+    font-size: 4.8rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -3px;
+    background: linear-gradient(180deg, #ffffff 25%, #b9c6da 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.nhl-score-dash {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--text-faint);
+    align-self: center;
+}
+
+.nhl-status {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+}
+
+/* --- Per-game strip --- */
+.nhl-games {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+
+.nhl-game {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 5px 2px;
+    border-radius: 9px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-top: 2px solid transparent;
+}
+
+.nhl-game-no {
+    font-size: 0.5rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: var(--text-faint);
+}
+
+.nhl-game-score {
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: var(--text);
+}
+
+.nhl-game-win {
+    font-size: 0.5rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+}
+
+/* Tint the winner's marker by team color: Carolina red, Vegas gold */
+.nhl-game-done.win-top {
+    border-top-color: #e2243b; /* Carolina Hurricanes red */
+}
+
+.nhl-game-done.win-bottom {
+    border-top-color: #b9975b; /* Vegas Golden Knights gold */
+}
+
+.nhl-game-future {
+    opacity: 0.45;
+}
+
+.nhl-game-future .nhl-game-score {
+    color: var(--text-faint);
+    font-weight: 700;
+}
+
+.nhl-game-live {
+    border-top-color: var(--success);
+    animation: pulse-red 1.6s infinite ease-in-out;
+}
+
+.nhl-game-live .nhl-game-score {
+    color: var(--success);
+    font-size: 0.6rem;
+}
+
+/* --- Next game footer --- */
+.nhl-next {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+}
+
+.nhl-next-tag {
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: #0d1120;
+    background: #f5c542;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.nhl-live-tag {
+    color: #fff;
+    background: var(--danger);
+    animation: blinker 1.5s linear infinite;
+}
+
+.nhl-next-main {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

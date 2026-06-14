@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 from .enums import WebSocketMessageType
 from .internal import (
     SensorStatus, SensorReading, SystemStats, SystemHealth,
-    BusDepartures, CurrentWeather, TodoistData, CalendarData
+    BusDepartures, CurrentWeather, TodoistData, CalendarData, NhlSeries
 )
 
 
@@ -149,6 +149,20 @@ class CalendarMessage(BaseWebSocketMessage):
 
 
 @dataclass
+class NhlMessage(BaseWebSocketMessage):
+    """WebSocket message for NHL Stanley Cup Final updates."""
+    nhl: Optional[NhlSeries]
+
+    @property
+    def message_type(self) -> WebSocketMessageType:
+        return WebSocketMessageType.NHL
+
+    @property
+    def data(self) -> Optional[Dict[str, Any]]:
+        return self.nhl.to_dict() if self.nhl else None
+
+
+@dataclass
 class InitialStateMessage(BaseWebSocketMessage):
     """Initial state sent to WebSocket clients on connect."""
     sensors: List[SensorReading]
@@ -160,6 +174,7 @@ class InitialStateMessage(BaseWebSocketMessage):
     transport: BusDepartures
     todoist: Optional[TodoistData]
     calendar: Optional[CalendarData]
+    nhl: Optional[NhlSeries] = None
 
     @property
     def message_type(self) -> WebSocketMessageType:
@@ -185,5 +200,6 @@ class InitialStateMessage(BaseWebSocketMessage):
                 "olgy": [asdict(dep) for dep in self.transport.olgy]
             },
             "todoist": self.todoist.to_dict() if self.todoist else None,
-            "calendar": self.calendar.to_dict() if self.calendar else None
+            "calendar": self.calendar.to_dict() if self.calendar else None,
+            "nhl": self.nhl.to_dict() if self.nhl else None
         }

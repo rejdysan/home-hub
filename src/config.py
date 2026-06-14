@@ -42,6 +42,12 @@ class Config:
     GOOGLE_CALENDAR_BANK_HOLIDAYS_SK: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_SK", "sk.slovak#holiday@group.v.calendar.google.com")
     GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_NAME: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_NAME", "Slovak Holidays")
 
+    # Google Calendar Colors (hex, matching Google Calendar UI colors)
+    GOOGLE_CALENDAR_REJDY_COLOR: str = os.getenv("GOOGLE_CALENDAR_REJDY_COLOR", "#7986CB")       # Lavender
+    GOOGLE_CALENDAR_ZUZ_COLOR: str = os.getenv("GOOGLE_CALENDAR_ZUZ_COLOR", "#8E24AA")           # Grape
+    GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_COLOR: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_COLOR", "#0B8043")  # Basil
+    GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_COLOR: str = os.getenv("GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_COLOR", "#039BE5")   # Peacock
+
     # Location
     LOCATION_LATITUDE: str = os.getenv("LOCATION_LATITUDE", "50.0878433")
     LOCATION_LONGITUDE: str = os.getenv("LOCATION_LONGITUDE", "14.478581")
@@ -55,7 +61,10 @@ class Config:
     WEBSOCKET_UPDATE_INTERVAL: int = int(os.getenv("WEBSOCKET_UPDATE_INTERVAL", "1"))  # 1 second
     GOOGLE_MAPS_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_MAPS_UPDATE_INTERVAL", "60"))  # 60 seconds
     TODOIST_UPDATE_INTERVAL: int = int(os.getenv("TODOIST_UPDATE_INTERVAL", "60"))  # 60 seconds
-    GOOGLE_CALENDAR_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_CALENDAR_UPDATE_INTERVAL", "30000"))  # 5 minutes
+    GOOGLE_CALENDAR_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_CALENDAR_UPDATE_INTERVAL", "300"))  # 5 minutes
+    NHL_UPDATE_INTERVAL: int = int(os.getenv("NHL_UPDATE_INTERVAL", "120"))  # 2 minutes during the Finals
+    # Optional override; empty means auto-derive the season from the current date (e.g. "20252026")
+    NHL_SEASON: str = os.getenv("NHL_SEASON", "")
 
     # MQTT Throttle
     MQTT_SAVE_THROTTLE: int = int(os.getenv("MQTT_SAVE_THROTTLE", "5"))  # 5 seconds

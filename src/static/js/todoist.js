@@ -34,7 +34,12 @@ const TodoistManager = {
     },
 
     /**
-     * Render a single project with its tasks
+     * Render a single project with its tasks.
+     *
+     * Diff-based: unchanged tasks are updated in place (no animation),
+     * new tasks slide in (.todo-enter), removed tasks animate out
+     * (.todo-exit) and are dropped from the DOM afterwards.
+     *
      * @param {Object} project - Project data
      * @param {number} index - Project index (1 or 2)
      */
@@ -48,26 +53,79 @@ const TodoistManager = {
             return;
         }
 
-        // Update header with project name
         headerEl.textContent = project.name || `Project ${index}`;
+        const tasks = project.tasks || [];
+        countEl.textContent = tasks.length;
 
-        // Update task count
-        const taskCount = project.tasks ? project.tasks.length : 0;
-        countEl.textContent = taskCount;
-
-        // Clear existing tasks
-        listEl.innerHTML = '';
-
-        // Render tasks
-        if (!project.tasks || project.tasks.length === 0) {
+        if (tasks.length === 0) {
             listEl.innerHTML = '<div class="todo-empty">No tasks</div>';
             return;
         }
 
-        project.tasks.forEach(task => {
-            const taskEl = this.createTaskElement(task);
-            listEl.appendChild(taskEl);
+        // Drop placeholders ("Loading...", "No tasks") and elements mid-exit
+        for (const child of [...listEl.children]) {
+            if (!child.classList.contains('todo-item') || child.classList.contains('todo-exit')) {
+                child.remove();
+            }
+        }
+
+        // Map current DOM elements by task id
+        const existing = new Map();
+        for (const child of listEl.children) {
+            existing.set(child.dataset.taskId, child);
+        }
+
+        const newIds = tasks.map(t => String(t.id));
+        const oldIds = [...existing.keys()];
+
+        const updateInPlace = (elm, task) => {
+            elm.className = `todo-item priority-${task.priority}`;
+            const content = elm.querySelector('.todo-content');
+            if (content) content.textContent = task.content;
+        };
+
+        // Common case: identical list (or only content edits) — refresh silently
+        if (newIds.length === oldIds.length && newIds.every((id, i) => id === oldIds[i])) {
+            tasks.forEach(t => updateInPlace(existing.get(String(t.id)), t));
+            return;
+        }
+
+        // If surviving tasks were reordered, rebuild silently — animating a
+        // reorder correctly isn't worth the complexity on a wall display
+        const newIdSet = new Set(newIds);
+        const survivingOld = oldIds.filter(id => newIdSet.has(id));
+        const survivingNew = newIds.filter(id => existing.has(id));
+        if (survivingOld.join() !== survivingNew.join()) {
+            listEl.innerHTML = '';
+            tasks.forEach(t => listEl.appendChild(this.createTaskElement(t)));
+            return;
+        }
+
+        // Removed tasks: animate out where they stand, then remove
+        existing.forEach((elm, id) => {
+            if (!newIdSet.has(id)) {
+                elm.classList.add('todo-exit');
+                elm.addEventListener('animationend', () => elm.remove(), { once: true });
+                existing.delete(id);
+            }
         });
+
+        // Added tasks: insert at their position with an enter animation.
+        // Walk backwards so each insertion point (the next surviving task's
+        // element) already exists.
+        let nextEl = null;
+        for (let i = tasks.length - 1; i >= 0; i--) {
+            const task = tasks[i];
+            let elm = existing.get(String(task.id));
+            if (elm) {
+                updateInPlace(elm, task);
+            } else {
+                elm = this.createTaskElement(task);
+                elm.classList.add('todo-enter');
+                listEl.insertBefore(elm, nextEl);
+            }
+            nextEl = elm;
+        }
     },
 
     /**
@@ -78,6 +136,7 @@ const TodoistManager = {
     createTaskElement(task) {
         const taskDiv = document.createElement('div');
         taskDiv.className = `todo-item priority-${task.priority}`;
+        taskDiv.dataset.taskId = String(task.id);
 
         // Create checkbox
         const checkbox = document.createElement('div');

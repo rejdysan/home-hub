@@ -16,7 +16,8 @@ const MessageType = Object.freeze({
     TRANSPORT: 'transport',
     HEARTBEAT: 'heartbeat',
     TODOIST: 'todoist',
-    CALENDAR: 'calendar'
+    CALENDAR: 'calendar',
+    NHL: 'nhl'
 });
 
 // ============================================================================
@@ -278,6 +279,7 @@ const Selector = Object.freeze({
     TOP_CONTAINER: '.top-container',
     BOTTOM_CONTAINER: '.bottom-container',
     MAP_RECTS: '.top-container .rect:nth-child(1), .top-container .rect:nth-child(2)',
+    NHL_RECT: '.top-container .rect.nhl-rect',
     CLOCK_RECT: '.bottom-container .rect.bottom-left',
     OTHER_BOTTOM_RECTS: '.bottom-container .rect:not(.bottom-left)',
     HEALTH_MQTT_DOT: '#health-mqtt .status-dot',

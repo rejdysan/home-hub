@@ -4,16 +4,44 @@
  */
 
 /**
- * Force refresh an iframe by resetting its src attribute
+ * Refresh an iframe without the blank-page blink.
+ *
+ * Double-buffered: a hidden clone loads the same src behind the visible
+ * frame; once loaded (plus a grace period for map tiles to paint) it
+ * cross-fades in and replaces the old frame. The old map stays visible
+ * for the entire reload, so nothing ever flashes white.
+ *
  * @param {string} id - The iframe element ID
  */
 function hardRefreshIframe(id) {
     const frame = document.getElementById(id);
-    if (frame) {
-        const src = frame.getAttribute('src');
-        frame.removeAttribute('src');
-        frame.setAttribute('src', src);
-    }
+    if (!frame) return;
+
+    const container = frame.parentElement;
+    // Drop any stale buffer from a refresh that never finished (e.g. offline)
+    container.querySelectorAll('.iframe-buffer').forEach(b => b.remove());
+
+    const src = frame.getAttribute('src');
+    const buffer = frame.cloneNode(false);
+    buffer.removeAttribute('id');
+    buffer.removeAttribute('src'); // set after wiring the load handler
+    buffer.classList.add('iframe-buffer');
+
+    buffer.addEventListener('load', () => {
+        // Give the freshly loaded map a moment to paint its tiles,
+        // then cross-fade and promote the buffer to be the real frame
+        setTimeout(() => {
+            buffer.classList.add('iframe-buffer-visible');
+            setTimeout(() => {
+                frame.remove();
+                buffer.id = id;
+                buffer.classList.remove('iframe-buffer', 'iframe-buffer-visible');
+            }, 700); // matches the CSS opacity transition
+        }, 900);
+    }, { once: true });
+
+    container.appendChild(buffer);
+    buffer.src = src;
 }
 
 /**

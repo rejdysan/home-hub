@@ -122,6 +122,7 @@ class CurrentWeather:
     uv: int
     cloud: int
     forecast: Dict[str, Any]
+    hourly: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -140,7 +141,8 @@ class CurrentWeather:
                 self.vis == other.vis and
                 self.uv == other.uv and
                 self.cloud == other.cloud and
-                self.forecast == other.forecast
+                self.forecast == other.forecast and
+                self.hourly == other.hourly
         )
 
 
@@ -200,6 +202,7 @@ class CalendarEvent:
     calendar_id: str
     calendar_name: str
     color_id: Optional[str] = None
+    calendar_color: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -221,4 +224,70 @@ class CalendarData:
         if not isinstance(other, CalendarData):
             return False
         return self.events == other.events
+
+
+# ============================================================================
+# NHL Stanley Cup Final models
+# ============================================================================
+
+@dataclass
+class NhlTeam:
+    """One team in an NHL playoff series."""
+    abbrev: str
+    place: str
+    name: str
+    wins: int
+    logo: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class NhlGame:
+    """One game within an NHL playoff series."""
+    number: int
+    state: str          # OFF (final), LIVE, FUT (future), PRE
+    away: str           # team abbrev
+    home: str           # team abbrev
+    away_score: Optional[int] = None
+    home_score: Optional[int] = None
+    winner: Optional[str] = None   # abbrev of winning team, if decided
+    start_utc: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class NhlSeries:
+    """A playoff series (used for the Stanley Cup Final panel)."""
+    round_label: str
+    needed_to_win: int
+    top: NhlTeam
+    bottom: NhlTeam
+    games: List[NhlGame] = field(default_factory=list)
+    updated: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "round_label": self.round_label,
+            "needed_to_win": self.needed_to_win,
+            "top": self.top.to_dict(),
+            "bottom": self.bottom.to_dict(),
+            "games": [g.to_dict() for g in self.games],
+            "updated": self.updated,
+        }
+
+    def equals_ignoring_updated(self, other: "NhlSeries") -> bool:
+        """Compare series data ignoring the updated timestamp."""
+        if not isinstance(other, NhlSeries):
+            return False
+        return (
+            self.round_label == other.round_label and
+            self.needed_to_win == other.needed_to_win and
+            self.top == other.top and
+            self.bottom == other.bottom and
+            self.games == other.games
+        )
 

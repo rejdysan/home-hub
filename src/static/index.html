@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home Hub Dashboard</title>
 
-    <!-- External Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- External Libraries (pinned version for deterministic kiosk boots) -->
+    <script src="https://unpkg.com/lucide@0.525.0"></script>
+
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="/static/css/style.css">
@@ -44,12 +48,6 @@
         </div>
 
         <div class="rect calendar-rect">
-            <div class="calendar-header">
-                <h2 class="calendar-main-header">
-                    <i data-lucide="calendar" size="16"></i> CALENDAR
-                </h2>
-                <span class="calendar-update-time" id="calendar-updated">Updated: --:--:--</span>
-            </div>
             <div class="calendar-scroll-container">
                 <div id="calendar-container" class="calendar-container">
                     <div class="calendar-loading">Loading calendar...</div>
@@ -85,6 +83,13 @@
                 </div>
             </div>
         </div>
+
+        <!-- NHL Stanley Cup Final (shown in day mode while the Finals are live) -->
+        <div class="rect nhl-rect" id="nhl-rect">
+            <div class="nhl-panel" id="nhl-panel">
+                <div class="nhl-loading">Loading Stanley Cup Final…</div>
+            </div>
+        </div>
     </div>
 
     <!-- Bottom Container: 3 items -->
@@ -98,43 +103,43 @@
                 </div>
 
                 <div class="system-half">
-                    <div style="grid-column: span 4; display: flex; gap: 15px; justify-content: center; margin-bottom: 5px;">
-                        <div id="health-mqtt"
-                             style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
-                            <span class="status-dot" style="position: static; display: inline-block;"></span> MQTT
+                    <div class="health-row">
+                        <div id="health-mqtt" class="health-item">
+                            <span class="status-dot"></span> MQTT
                         </div>
-                        <div id="health-db"
-                             style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
-                            <span class="status-dot" style="position: static; display: inline-block;"></span> DATABASE
+                        <div id="health-db" class="health-item">
+                            <span class="status-dot"></span> DATABASE
                         </div>
-                        <div id="health-wifi"
-                             style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; display: flex; align-items: center; gap: 5px;">
-                            <span class="status-dot" style="position: static; display: inline-block;"></span> WIFI
+                        <div id="health-wifi" class="health-item">
+                            <span class="status-dot"></span> WIFI
                         </div>
                     </div>
                     <div class="sys-card">
-                        <div class="sys-icon-wrapper"><i data-lucide="cpu" color="#facc15" size="32"></i></div>
+                        <div class="gauge" id="gauge-cpu">
+                            <span class="gauge-val cpu-text" id="cpu-pct">0%</span>
+                        </div>
                         <span class="sys-label">CPU</span>
-                        <div class="sys-val cpu-text" id="cpu-pct">0%</div>
                         <div class="sys-sub" id="cpu-temp">--°C</div>
                     </div>
 
                     <div class="sys-card">
-                        <div class="sys-icon-wrapper"><i data-lucide="memory-stick" color="#a855f7" size="32"></i></div>
+                        <div class="gauge" id="gauge-ram">
+                            <span class="gauge-val ram-text" id="ram-pct">0%</span>
+                        </div>
                         <span class="sys-label">RAM</span>
-                        <div class="sys-val ram-text" id="ram-pct">0%</div>
                         <div class="sys-sub" id="ram-detail">-- / --</div>
                     </div>
 
                     <div class="sys-card">
-                        <div class="sys-icon-wrapper"><i data-lucide="hard-drive" color="#22c55e" size="32"></i></div>
+                        <div class="gauge" id="gauge-disk">
+                            <span class="gauge-val disk-text" id="disk-pct">0%</span>
+                        </div>
                         <span class="sys-label">Disk</span>
-                        <div class="sys-val disk-text" id="disk-pct">0%</div>
                         <div class="sys-sub" id="disk-detail">-- / --</div>
                     </div>
 
                     <div class="sys-card">
-                        <div class="sys-icon-wrapper"><i data-lucide="wifi" color="#3b82f6" size="32"></i></div>
+                        <div class="net-icon-wrapper"><i data-lucide="wifi" color="#60a5fa" size="26"></i></div>
                         <span class="sys-label">Network</span>
                         <div class="net-values-container">
                             <div class="net-value-item">
@@ -154,94 +159,82 @@
 
         <div class="rect" id="weather-rect">
             <div class="weather-panel">
-                <div class="w-section-top">
-                    <div class="w-header" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; align-items:center; gap:12px">
-                            <i id="main-icon" data-lucide="sun" style="width:50px; height:50px"></i>
-                            <span class="w-temp-main" id="today-temp"
-                                  style="font-size:3.5rem; font-weight:900">--°</span>
-                            <div style="font-size:0.8rem; opacity:0.8">Feels <span id="w-feels">--</span>°</div>
-                        </div>
-                        <div style="text-align:right">
-                            <div id="w-desc" class="w-desc" style="font-weight:900; font-size:1.3rem;">Loading...</div>
-                            <div id="w-updated" style="font-size: 0.6rem; opacity: 0.6; font-weight: 800;">Updated:
-                                --:--
-                            </div>
+                <!-- Hero: condition + big temperature -->
+                <div class="w-hero">
+                    <div class="w-hero-main">
+                        <i id="main-icon" data-lucide="sun" style="width:54px; height:54px"></i>
+                        <span class="w-temp-main" id="today-temp">--°</span>
+                        <div class="w-hero-text">
+                            <div id="w-desc" class="w-desc">Loading...</div>
+                            <div class="w-feels-label">Feels like <span id="w-feels">--</span>°</div>
                         </div>
                     </div>
+                    <div id="w-updated" class="w-updated">Updated: --:--</div>
+                </div>
 
-                    <div class="w-stats-grid">
-                        <div class="stat-box">
-                            <span class="stat-label"><i data-lucide="wind" size="14"></i> Wind</span>
-                            <span class="stat-value"><span id="w-wind">--</span> <small
-                                    style="font-size:0.6rem"> km/h</small></span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-label"><i data-lucide="droplets" size="14"></i> Humidity</span>
-                            <span class="stat-value"><span id="w-hum">--</span><small
-                                    style="font-size:0.6rem"> %</small></span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-label"><i data-lucide="gauge" size="14"></i> Pressure</span>
-                            <span class="stat-value"><span id="w-pres">--</span><small
-                                    style="font-size:0.6rem"> hPa</small></span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-label"><i data-lucide="eye" size="14"></i> Visibility</span>
-                            <span class="stat-value"><span id="w-vis">--</span><small
-                                    style="font-size:0.6rem"> km</small></span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-label"><i data-lucide="sun" size="14"></i> UV index</span>
-                            <span class="stat-value" id="w-uv">--</span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-label"><i data-lucide="cloud-sun" size="14"></i> Clouds</span>
-                            <span class="stat-value"><span id="w-cloud">--</span><small
-                                    style="font-size:0.6rem"> %</small></span>
-                        </div>
+                <!-- Stats strip: open columns with hairline dividers, no boxes -->
+                <div class="w-stats-strip">
+                    <div class="w-stat">
+                        <i data-lucide="wind"></i>
+                        <span class="w-stat-val"><span id="w-wind">--</span><small>km/h</small></span>
+                        <span class="w-stat-name">Wind</span>
+                    </div>
+                    <div class="w-stat">
+                        <i data-lucide="droplets"></i>
+                        <span class="w-stat-val"><span id="w-hum">--</span><small>%</small></span>
+                        <span class="w-stat-name">Humidity</span>
+                    </div>
+                    <div class="w-stat">
+                        <i data-lucide="gauge"></i>
+                        <span class="w-stat-val"><span id="w-pres">--</span><small>hPa</small></span>
+                        <span class="w-stat-name">Pressure</span>
+                    </div>
+                    <div class="w-stat">
+                        <i data-lucide="eye"></i>
+                        <span class="w-stat-val"><span id="w-vis">--</span><small>km</small></span>
+                        <span class="w-stat-name">Visibility</span>
+                    </div>
+                    <div class="w-stat">
+                        <i data-lucide="sun"></i>
+                        <span class="w-stat-val" id="w-uv">--</span>
+                        <span class="w-stat-name">UV index</span>
+                    </div>
+                    <div class="w-stat">
+                        <i data-lucide="cloud-sun"></i>
+                        <span class="w-stat-val"><span id="w-cloud">--</span><small>%</small></span>
+                        <span class="w-stat-name">Clouds</span>
                     </div>
                 </div>
-                <div class="w-section-middle">
-                    <div class="w-forecast-grid" id="forecast-row"></div>
-                </div>
 
-                <div class="w-section-bottom">
-                    <div class="home-grid-layout">
-                        <div class="sensor-card-mini">
-                            <span class="room-label">Bedroom</span>
-                            <div id="status-bedroom" class="status-dot status-offline"></div>
-                            <span class="home-sub" style="margin-top: 15px;">Temp</span>
-                            <span class="big-val"><span id="home-bedroom">--</span><small class="unit-label"> °</small></span>
-                        </div>
-                        <div class="sensor-card-mini">
-                            <span class="room-label">Mainroom</span>
-                            <div id="status-living" class="status-dot status-offline"></div>
-                            <span class="home-sub" style="margin-top: 15px;">Temp</span>
-                            <span class="big-val"><span id="home-living">--</span><small
-                                    class="unit-label"> °</small></span>
-                        </div>
-                        <div class="sensor-card-mini">
-                            <span class="room-label">Balcony (outside)</span>
-                            <div id="status-balcony" class="status-dot status-offline"></div>
-                            <div class="balcony-inner-grid" style="margin-top: 10px;">
-                                <div class="balc-item">
-                                    <span class="home-sub">Temp</span>
-                                    <span class="big-val"><span id="home-balcony-temp">--</span><small
-                                            class="unit-label">°</small></span>
-                                </div>
-                                <div class="balc-item">
-                                    <span class="home-sub">Humidity</span>
-                                    <span class="big-val"><span id="home-balcony-hum">--</span><small
-                                            class="unit-label"> %</small></span>
-                                </div>
-                                <div class="balc-item">
-                                    <span class="home-sub">Pressure</span>
-                                    <span class="big-val"><span id="home-balcony-press">--</span><small
-                                            class="unit-label"> hPa</small></span>
-                                </div>
-                            </div>
-                        </div>
+                <div class="w-rule"></div>
+
+                <!-- 24h temperature graph: actual vs feels-like, with a "now" marker -->
+                <div class="w-graph" id="w-graph"></div>
+
+                <div class="w-rule"></div>
+
+                <!-- 7-day forecast: open columns with temperature range bars -->
+                <div class="w-forecast-grid" id="forecast-row"></div>
+
+                <div class="w-rule"></div>
+
+                <!-- Indoor sensors strip -->
+                <div class="w-home-strip">
+                    <div class="w-room">
+                        <span class="w-room-name"><span id="status-bedroom" class="status-dot status-offline"></span>Bedroom</span>
+                        <span class="w-room-val"><span id="home-bedroom">--</span><small>°C</small></span>
+                    </div>
+                    <div class="w-room">
+                        <span class="w-room-name"><span id="status-living" class="status-dot status-offline"></span>Mainroom</span>
+                        <span class="w-room-val"><span id="home-living">--</span><small>°C</small></span>
+                    </div>
+                    <div class="w-room w-room-wide">
+                        <span class="w-room-name"><span id="status-balcony" class="status-dot status-offline"></span>Balcony (outside)</span>
+                        <span class="w-room-vals">
+                            <span class="w-room-val"><span id="home-balcony-temp">--</span><small>°C</small></span>
+                            <span class="w-room-val"><span id="home-balcony-hum">--</span><small>%</small></span>
+                            <span class="w-room-val"><span id="home-balcony-press">--</span><small>hPa</small></span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -278,6 +271,7 @@
 <script src="/static/js/weather.js"></script>
 <script src="/static/js/transport.js"></script>
 <script src="/static/js/todoist.js"></script>
+<script src="/static/js/nhl.js"></script>
 <script src="/static/js/calendar.js"></script>
 <script src="/static/js/updates.js"></script>
 <script src="/static/js/websocket.js"></script>

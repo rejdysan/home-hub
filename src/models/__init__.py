@@ -25,6 +25,7 @@ from .enums import (
     ApiResponseKey,
     WEATHER_CURRENT_PARAMS,
     WEATHER_DAILY_PARAMS,
+    WEATHER_HOURLY_PARAMS,
 )
 
 # External API models
@@ -39,11 +40,14 @@ from .external_apis import (
     NamedayResponse,
     OpenMeteoCurrent,
     OpenMeteoDaily,
+    OpenMeteoHourly,
     OpenMeteoResponse,
     TodoistTaskResponse,
     TodoistProjectResponse,
     GoogleCalendarEventTime,
     GoogleCalendarEventResponse,
+    find_final_series_letter,
+    parse_nhl_series,
 )
 
 # Internal application models
@@ -61,6 +65,9 @@ from .internal import (
     TodoistData,
     CalendarEvent,
     CalendarData,
+    NhlTeam,
+    NhlGame,
+    NhlSeries,
 )
 
 # WebSocket message models
@@ -75,6 +82,7 @@ from .websocket import (
     InitialStateMessage,
     TodoistMessage,
     CalendarMessage,
+    NhlMessage,
 )
 
 __all__ = [
@@ -94,6 +102,7 @@ __all__ = [
     "ApiResponseKey",
     "WEATHER_CURRENT_PARAMS",
     "WEATHER_DAILY_PARAMS",
+    "WEATHER_HOURLY_PARAMS",
     # External APIs
     "GolemioTimestamp",
     "GolemioDelay",
@@ -105,11 +114,14 @@ __all__ = [
     "NamedayResponse",
     "OpenMeteoCurrent",
     "OpenMeteoDaily",
+    "OpenMeteoHourly",
     "OpenMeteoResponse",
     "TodoistTaskResponse",
     "TodoistProjectResponse",
     "GoogleCalendarEventTime",
     "GoogleCalendarEventResponse",
+    "find_final_series_letter",
+    "parse_nhl_series",
     # Internal
     "FrontendConfig",
     "SystemStats",
@@ -124,10 +136,14 @@ __all__ = [
     "TodoistData",
     "CalendarEvent",
     "CalendarData",
+    "NhlTeam",
+    "NhlGame",
+    "NhlSeries",
     # WebSocket
     "BaseWebSocketMessage",
     "TodoistMessage",
     "CalendarMessage",
+    "NhlMessage",
     "SensorStatusMessage",
     "TransportMessage",
     "WeatherMessage",

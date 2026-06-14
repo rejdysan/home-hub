@@ -20,6 +20,9 @@ console.log('🚀 app.js loaded at', new Date().toISOString());
  * Sets up intervals and fetches configuration
  */
 function initializeApp() {
+    // Render static Lucide icons immediately (don't wait for first weather update)
+    lucide.createIcons();
+
     // Start clock updates
     setInterval(window.updateClock, Interval.CLOCK_UPDATE);
     window.updateClock();
@@ -63,24 +66,24 @@ function fetchConfigAndSetupIntervals() {
             window.applyKioskMode();
 
             // Update timestamps on initial load
+            // (calendar iframes were replaced by the WebSocket-driven month view,
+            // so only the map tags still show a refresh timestamp)
             const now = new Date();
             const timestamp = "Updated: " + now.toLocaleTimeString(Locale.TIME);
-            document.getElementById(ElementId.UPDATE_MAP_1).innerText = timestamp;
-            document.getElementById(ElementId.UPDATE_MAP_2).innerText = timestamp;
-            document.getElementById(ElementId.UPDATE_CAL_1).innerText = timestamp;
-            document.getElementById(ElementId.UPDATE_CAL_2).innerText = timestamp;
+            const map1Tag = document.getElementById(ElementId.UPDATE_MAP_1);
+            const map2Tag = document.getElementById(ElementId.UPDATE_MAP_2);
+            if (map1Tag) map1Tag.innerText = timestamp;
+            if (map2Tag) map2Tag.innerText = timestamp;
 
-            // Set up separate refresh intervals
+            // Set up map refresh interval
             setInterval(window.refreshMaps, cfg.google_maps_update_interval);
-            setInterval(window.refreshCalendar, cfg.google_calendar_update_interval);
-            console.log(`Maps refresh: ${cfg.google_maps_update_interval / 1000}s, Calendar refresh: ${cfg.google_calendar_update_interval / 1000}s`);
+            console.log(`Maps refresh: ${cfg.google_maps_update_interval / 1000}s`);
         })
         .catch(err => {
             // Fallback to defaults if config fetch fails
             console.error('❌ Failed to fetch config:', err);
             window.applyKioskMode();
             setInterval(window.refreshMaps, Interval.DEFAULT_MAP_REFRESH);
-            setInterval(window.refreshCalendar, Interval.DEFAULT_CALENDAR_REFRESH);
         });
 }
 

@@ -1,6 +1,6 @@
 import asyncio
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from pathlib import Path
@@ -16,10 +16,11 @@ from src.models import (
     InitialStateMessage, SensorStatusMessage, TransportMessage,
     WeatherMessage, NamedayMessage, HeartbeatMessage,
     BusStop, BUS_STOP_LINES, ApiUrl, ApiParam, ApiHeader, ApiValue,
-    WEATHER_CURRENT_PARAMS, WEATHER_DAILY_PARAMS,
+    WEATHER_CURRENT_PARAMS, WEATHER_DAILY_PARAMS, WEATHER_HOURLY_PARAMS,
     TodoistData, TodoistProject, TodoistTask, TodoistMessage,
     TodoistTaskResponse, TodoistProjectResponse,
-    CalendarData, CalendarMessage
+    CalendarData, CalendarMessage,
+    NhlSeries, NhlMessage, find_final_series_letter, parse_nhl_series
 )
 from src.system_info import live_system_stats, check_wifi_connectivity
 from src.websocket_manager import manager
@@ -33,6 +34,7 @@ latest_nameday: str = "..."
 latest_departures: BusDepartures = BusDepartures()
 latest_todoist: TodoistData | None = None
 latest_calendar: CalendarData | None = None
+latest_nhl: NhlSeries | None = None
 
 # Thread safety: Lock to protect global cache variables
 _cache_lock = asyncio.Lock()
@@ -79,21 +81,26 @@ def get_calendar_service() -> GoogleCalendarService | None:
     if _calendar_service is None:
         # Build calendar configs from environment
         calendar_configs = {}
+        calendar_colors = {}
         if config.GOOGLE_CALENDAR_REJDY_ID:
             calendar_configs[config.GOOGLE_CALENDAR_REJDY_ID] = config.GOOGLE_CALENDAR_REJDY_NAME
+            calendar_colors[config.GOOGLE_CALENDAR_REJDY_ID] = config.GOOGLE_CALENDAR_REJDY_COLOR
         if config.GOOGLE_CALENDAR_ZUZ_ID:
             calendar_configs[config.GOOGLE_CALENDAR_ZUZ_ID] = config.GOOGLE_CALENDAR_ZUZ_NAME
+            calendar_colors[config.GOOGLE_CALENDAR_ZUZ_ID] = config.GOOGLE_CALENDAR_ZUZ_COLOR
 
         # Add bank holiday calendars
         calendar_configs[config.GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ] = config.GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_NAME
+        calendar_colors[config.GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ] = config.GOOGLE_CALENDAR_BANK_HOLIDAYS_CZ_COLOR
         calendar_configs[config.GOOGLE_CALENDAR_BANK_HOLIDAYS_SK] = config.GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_NAME
+        calendar_colors[config.GOOGLE_CALENDAR_BANK_HOLIDAYS_SK] = config.GOOGLE_CALENDAR_BANK_HOLIDAYS_SK_COLOR
 
         if not calendar_configs:
             logger.warning("⚠️ No Google Calendar IDs configured, calendar updates disabled")
             return None
 
         service_account_path = Path(__file__).parent.parent / config.GOOGLE_SERVICE_ACCOUNT_FILE
-        _calendar_service = GoogleCalendarService(service_account_path, calendar_configs)
+        _calendar_service = GoogleCalendarService(service_account_path, calendar_configs, calendar_colors)
 
     return _calendar_service
 
@@ -128,6 +135,105 @@ async def update_calendar_data() -> None:
             logger.error(f"⚠️ Calendar data error: {e}")
 
         await asyncio.sleep(config.GOOGLE_CALENDAR_UPDATE_INTERVAL)
+
+
+def _current_nhl_season() -> str:
+    """Derive the NHL season id (e.g. '20252026') from the current date, or use the override."""
+    if config.NHL_SEASON:
+        return config.NHL_SEASON
+    now = datetime.now()
+    start_year = now.year if now.month >= 9 else now.year - 1
+    return f"{start_year}{start_year + 1}"
+
+
+def _nhl_still_visible(series: NhlSeries) -> bool:
+    """
+    Decide whether the final tile should still be shown.
+
+    Visible while the series is live, and for one extra day after it's decided;
+    hidden once the clinching game is more than a day in the past.
+    """
+    decided = series.top.wins >= series.needed_to_win or series.bottom.wins >= series.needed_to_win
+    if not decided:
+        return True
+
+    # Series over: keep the tile until the day after the clinching (last finished) game
+    clinch_dates = []
+    for g in series.games:
+        if g.state == "OFF" and g.start_utc:
+            try:
+                clinch_dates.append(datetime.fromisoformat(g.start_utc.replace("Z", "+00:00")).date())
+            except ValueError:
+                pass
+    if not clinch_dates:
+        return True
+    return datetime.now().date() <= max(clinch_dates) + timedelta(days=1)
+
+
+async def update_nhl_data() -> None:
+    """
+    Background task to fetch the NHL Stanley Cup Final series.
+
+    Finds the final series from the playoff carousel, then fetches its
+    game-by-game detail. Sets latest_nhl to None outside the Finals so the
+    frontend hides the panel automatically.
+    """
+    global latest_nhl
+
+    logger.info("🏒 NHL Stanley Cup Final monitoring started")
+
+    client = get_http_client()
+    while True:
+        try:
+            season = _current_nhl_season()
+
+            # 1) Carousel → which series is the final, if any
+            carousel_resp = await client.get(
+                ApiUrl.NHL_PLAYOFF_CAROUSEL.value.format(season=season),
+                timeout=10.0, follow_redirects=True
+            )
+            new_nhl: NhlSeries | None = None
+            if carousel_resp.status_code == 200:
+                letter = find_final_series_letter(carousel_resp.json())
+                if letter:
+                    # 2) Series detail → game-by-game
+                    detail_resp = await client.get(
+                        ApiUrl.NHL_PLAYOFF_SERIES.value.format(season=season, letter=letter.lower()),
+                        timeout=10.0, follow_redirects=True
+                    )
+                    if detail_resp.status_code == 200:
+                        new_nhl = parse_nhl_series(detail_resp.json())
+                        # Hide the tile once the final has been over for more than a day
+                        if new_nhl is not None and not _nhl_still_visible(new_nhl):
+                            logger.debug("🏒 Final decided >1 day ago — hiding panel")
+                            new_nhl = None
+                else:
+                    logger.debug("🏒 No Stanley Cup Final series active")
+            else:
+                logger.warning(f"⚠️ NHL carousel returned status {carousel_resp.status_code}")
+
+            async with _cache_lock:
+                changed = (
+                    (latest_nhl is None) != (new_nhl is None)
+                    or (new_nhl is not None and latest_nhl is not None
+                        and not new_nhl.equals_ignoring_updated(latest_nhl))
+                )
+                if changed:
+                    latest_nhl = new_nhl
+                    logger.info(
+                        f"🏒 NHL updated: {new_nhl.top.abbrev} {new_nhl.top.wins}-{new_nhl.bottom.wins} {new_nhl.bottom.abbrev}"
+                        if new_nhl else "🏒 NHL: no active final (panel hidden)"
+                    )
+                    await manager.broadcast(NhlMessage(nhl=latest_nhl).to_dict())
+                else:
+                    logger.debug("🏒 NHL data unchanged")
+
+        except httpx.TimeoutException:
+            logger.warning("⚠️ NHL API timeout")
+        except Exception as e:
+            logger.error(f"⚠️ NHL data error: {e}")
+
+        await asyncio.sleep(config.NHL_UPDATE_INTERVAL)
 
 
 async def update_bus_data() -> None:
@@ -257,6 +363,10 @@ async def update_weather_data() -> None:
         ApiParam.LONGITUDE.value: config.LOCATION_LONGITUDE,
         ApiParam.CURRENT.value: ",".join(WEATHER_CURRENT_PARAMS),
         ApiParam.DAILY.value: ",".join(WEATHER_DAILY_PARAMS),
+        ApiParam.HOURLY.value: ",".join(WEATHER_HOURLY_PARAMS),
+        # Hourly window for the temperature graph: 2h back, 22h ahead
+        ApiParam.PAST_HOURS.value: 2,
+        ApiParam.FORECAST_HOURS.value: 22,
         ApiParam.TIMEZONE.value: ApiValue.TIMEZONE_PRAGUE.value,
         ApiParam.FORECAST_DAYS.value: 7
     }
@@ -339,10 +449,11 @@ async def update_todoist_data() -> None:
 
                 if project_response.status_code == 200 and tasks_response.status_code == 200:
                     # Parse responses using proper models
+                    # (unified API v1 wraps task lists in a {"results": [...]} envelope)
                     project_api = TodoistProjectResponse.from_dict(project_response.json())
                     tasks_api_list = [
                         TodoistTaskResponse.from_dict(task_data)
-                        for task_data in tasks_response.json()
+                        for task_data in tasks_response.json().get("results", [])
                     ]
 
                     # Filter only non-completed tasks and convert to internal model
@@ -544,7 +655,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 health=get_system_health(),
                 transport=latest_departures,
                 todoist=latest_todoist,
-                calendar=latest_calendar
+                calendar=latest_calendar,
+                nhl=latest_nhl
             )
 
         await websocket.send_json(initial_state.to_dict())
