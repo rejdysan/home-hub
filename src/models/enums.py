@@ -31,6 +31,7 @@ class WebSocketMessageType(str, Enum):
     HEARTBEAT = "heartbeat"
     TODOIST = "todoist"
     CALENDAR = "calendar"
+    NHL = "nhl"
 
 
 class BusStop(str, Enum):
@@ -58,8 +59,11 @@ class ApiUrl(str, Enum):
     GOLEMIO_DEPARTURES = "https://api.golemio.cz/v2/pid/departureboards"
     NAMEDAY = "https://nameday.abalin.net/api/V2/today"
     OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
-    TODOIST_TASKS = "https://api.todoist.com/rest/v2/tasks"
-    TODOIST_PROJECTS = "https://api.todoist.com/rest/v2/projects"
+    TODOIST_TASKS = "https://api.todoist.com/api/v1/tasks"
+    TODOIST_PROJECTS = "https://api.todoist.com/api/v1/projects"
+    # NHL (unofficial public API). {season} = e.g. 20252026, {letter} = series letter
+    NHL_PLAYOFF_CAROUSEL = "https://api-web.nhle.com/v1/playoff-series/carousel/{season}/"
+    NHL_PLAYOFF_SERIES = "https://api-web.nhle.com/v1/schedule/playoff-series/{season}/{letter}/"
 
 
 
@@ -83,6 +87,12 @@ WEATHER_DAILY_PARAMS: List[str] = [
     "weather_code",
 ]
 
+# Hourly series for the temperature graph (2h past + 22h ahead)
+WEATHER_HOURLY_PARAMS: List[str] = [
+    "temperature_2m",
+    "apparent_temperature",
+]
+
 
 class ApiParam(str, Enum):
     """API query parameter names."""
@@ -91,8 +101,11 @@ class ApiParam(str, Enum):
     LONGITUDE = "longitude"
     CURRENT = "current"
     DAILY = "daily"
+    HOURLY = "hourly"
     TIMEZONE = "timezone"
     FORECAST_DAYS = "forecast_days"
+    PAST_HOURS = "past_hours"
+    FORECAST_HOURS = "forecast_hours"
     # Golemio
     IDS = "ids"
     MODE = "mode"

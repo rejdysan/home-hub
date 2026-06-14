@@ -97,13 +97,17 @@ const GOOGLE_EVENT_COLORS = {
 const DEFAULT_EVENT_COLOR = '#4285f4';
 
 /**
- * Get the hex color for an event based on its Google color_id
- * @param {string|null} colorId
+ * Get the hex color for an event based on its Google color_id or calendar_color
+ * @param {string|null} colorId - event-level color override
+ * @param {string|null} calendarColor - calendar-level default color
  * @returns {string} hex color
  */
-function getEventColor(colorId) {
+function getEventColor(colorId, calendarColor) {
     if (colorId && GOOGLE_EVENT_COLORS[colorId]) {
         return GOOGLE_EVENT_COLORS[colorId];
+    }
+    if (calendarColor) {
+        return calendarColor;
     }
     return DEFAULT_EVENT_COLOR;
 }
@@ -454,7 +458,7 @@ function createSingleDayTimedEvent(event) {
     eventEl.className = 'calendar-event-timed';
 
     // Get Google Calendar color
-    const eventColor = getEventColor(event.color_id);
+    const eventColor = getEventColor(event.color_id, event.calendar_color);
 
     // Check if event has ended (is in the past)
     const now = new Date();
@@ -514,7 +518,7 @@ function createSpanningEvent(event, cellWidth, cellHeightPx) {
     eventEl.style.zIndex = String(zIndex);
 
     // Apply Google Calendar color via inline styles
-    const eventColor = getEventColor(event.color_id);
+    const eventColor = getEventColor(event.color_id, event.calendar_color);
     const { r, g, b } = hexToRgb(eventColor);
     eventEl.style.background = `rgba(${r}, ${g}, ${b}, 0.9)`;
     eventEl.style.borderLeftColor = eventColor;
@@ -580,49 +584,11 @@ function renderCalendar(calendarData) {
     const calendarGrid = document.createElement('div');
     calendarGrid.className = 'calendar-month-grid';
 
-    // Month header with legend
+    // Month header with month/year title
     const monthHeader = document.createElement('div');
     monthHeader.className = 'calendar-month-header';
 
-    // Legend (left side) - prefix explanations
-    const legendContainer = document.createElement('div');
-    legendContainer.className = 'calendar-legend';
-
-    // Column 1: Personal calendars
-    const legendCol1 = document.createElement('div');
-    legendCol1.className = 'calendar-legend-column';
-
-    const rejdyItem = document.createElement('div');
-    rejdyItem.className = 'calendar-legend-item';
-    rejdyItem.innerHTML = '<span class="legend-prefix">(R)</span><span>Rejdy</span>';
-    legendCol1.appendChild(rejdyItem);
-
-    const zuzItem = document.createElement('div');
-    zuzItem.className = 'calendar-legend-item';
-    zuzItem.innerHTML = '<span class="legend-prefix">(Z)</span><span>Zuzana</span>';
-    legendCol1.appendChild(zuzItem);
-
-    legendContainer.appendChild(legendCol1);
-
-    // Column 2: Bank holidays
-    const legendCol2 = document.createElement('div');
-    legendCol2.className = 'calendar-legend-column';
-
-    const czItem = document.createElement('div');
-    czItem.className = 'calendar-legend-item';
-    czItem.innerHTML = '<span class="legend-prefix">(CZ)</span><span>CZ Holidays</span>';
-    legendCol2.appendChild(czItem);
-
-    const skItem = document.createElement('div');
-    skItem.className = 'calendar-legend-item';
-    skItem.innerHTML = '<span class="legend-prefix">(SK)</span><span>SK Holidays</span>';
-    legendCol2.appendChild(skItem);
-
-    legendContainer.appendChild(legendCol2);
-
-    monthHeader.appendChild(legendContainer);
-
-    // Month/Year title (right side)
+    // Month/Year title
     const monthTitle = document.createElement('div');
     monthTitle.className = 'calendar-month-title';
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',

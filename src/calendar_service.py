@@ -5,9 +5,15 @@ from datetime import datetime, timedelta
 from typing import Dict
 from pathlib import Path
 
+import httplib2
 from google.oauth2 import service_account
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+# Per-request timeout for Google API calls. Without it, a stalled connection
+# blocks the fetch thread for minutes (observed ~30s+ per calendar).
+GOOGLE_API_TIMEOUT_SECONDS = 15
 
 from src.logger import logger
 from src.models.internal import CalendarData
@@ -18,17 +24,19 @@ from src.models.enums import ApiParam, ApiValue, ApiResponseKey
 class GoogleCalendarService:
     """Service to fetch Google Calendar events using Service Account authentication."""
 
-    def __init__(self, service_account_file: Path, calendar_configs: Dict[str, str]):
+    def __init__(self, service_account_file: Path, calendar_configs: Dict[str, str], calendar_colors: Dict[str, str] | None = None):
         """
         Initialize the Google Calendar service.
 
         Args:
             service_account_file: Path to the service account JSON key file
             calendar_configs: Dict mapping calendar IDs to friendly names
+            calendar_colors: Dict mapping calendar IDs to hex color strings
         """
         self.service_account_file = service_account_file
         self.calendar_configs = calendar_configs
         self.service = None
+        self._calendar_colors: Dict[str, str] = calendar_colors or {}
         self._initialize_service()
 
     def _initialize_service(self):
@@ -43,9 +51,11 @@ class GoogleCalendarService:
                 scopes=['https://www.googleapis.com/auth/calendar.readonly']
             )
 
-            # Build service with credentials (modern approach - no explicit HTTP client needed)
-            # The timeout is handled by the underlying transport layer
-            self.service = build('calendar', 'v3', credentials=credentials)
+            authed_http = AuthorizedHttp(
+                credentials,
+                http=httplib2.Http(timeout=GOOGLE_API_TIMEOUT_SECONDS)
+            )
+            self.service = build('calendar', 'v3', http=authed_http, cache_discovery=False)
             logger.info(f"✅ Google Calendar service initialized for {len(self.calendar_configs)} calendars")
 
         except Exception as e:
@@ -116,8 +126,9 @@ class GoogleCalendarService:
                 for event_data in events:
                     # Parse using typed model
                     event_response = GoogleCalendarEventResponse.from_dict(event_data)
-                    # Convert to internal model with calendar info
-                    calendar_event = event_response.to_calendar_event(calendar_id, calendar_name)
+                    # Convert to internal model with calendar info and calendar-level color
+                    cal_color = self._calendar_colors.get(calendar_id)
+                    calendar_event = event_response.to_calendar_event(calendar_id, calendar_name, cal_color)
                     all_events.append(calendar_event)
 
                 logger.debug(f"📅 Fetched {len(events)} events from calendar: {calendar_name}")

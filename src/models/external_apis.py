@@ -248,16 +248,42 @@ class OpenMeteoDaily:
 
 
 @dataclass
+class OpenMeteoHourly:
+    """Hourly series from OpenMeteo API (temperature graph)."""
+    time: List[str] = field(default_factory=list)
+    temperature_2m: List[float] = field(default_factory=list)
+    apparent_temperature: List[float] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "OpenMeteoHourly":
+        return cls(
+            time=data.get("time", []),
+            temperature_2m=data.get("temperature_2m", []),
+            apparent_temperature=data.get("apparent_temperature", [])
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "time": self.time,
+            "temperature_2m": self.temperature_2m,
+            "apparent_temperature": self.apparent_temperature
+        }
+
+
+@dataclass
 class OpenMeteoResponse:
     """Full response from OpenMeteo API."""
     current: OpenMeteoCurrent
     daily: OpenMeteoDaily
+    hourly: OpenMeteoHourly
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "OpenMeteoResponse":
         return cls(
             current=OpenMeteoCurrent.from_dict(data.get("current", {})),
-            daily=OpenMeteoDaily.from_dict(data.get("daily", {}))
+            daily=OpenMeteoDaily.from_dict(data.get("daily", {})),
+            hourly=OpenMeteoHourly.from_dict(data.get("hourly", {}))
         )
 
     def to_current_weather(self) -> "CurrentWeather":
@@ -280,7 +306,8 @@ class OpenMeteoResponse:
             vis=round(self.current.visibility / 1000),
             uv=round(self.current.uv_index),
             cloud=self.current.cloud_cover,
-            forecast=self.daily.to_dict()
+            forecast=self.daily.to_dict(),
+            hourly=self.hourly.to_dict()
         )
 
 
@@ -307,10 +334,10 @@ class TodoistTaskResponse:
             id=str(data.get("id", "")),
             content=data.get("content", ""),
             project_id=str(data.get("project_id", "")),
-            is_completed=data.get("is_completed", False),
+            is_completed=data.get("checked", False),
             priority=data.get("priority", 1),
-            order=data.get("order", 0),
-            created_at=data.get("created_at"),
+            order=data.get("child_order", 0),
+            created_at=data.get("added_at"),
             due=data.get("due")
         )
 
@@ -351,14 +378,14 @@ class TodoistProjectResponse:
             name=data.get("name", ""),
             color=data.get("color"),
             parent_id=str(data["parent_id"]) if data.get("parent_id") else None,
-            order=data.get("order", 0),
-            comment_count=data.get("comment_count", 0),
+            order=data.get("child_order", 0),
+            comment_count=0,
             is_shared=data.get("is_shared", False),
             is_favorite=data.get("is_favorite", False),
-            is_inbox_project=data.get("is_inbox_project", False),
-            is_team_inbox=data.get("is_team_inbox", False),
+            is_inbox_project=data.get("inbox_project", False),
+            is_team_inbox=False,
             view_style=data.get("view_style", "list"),
-            url=data.get("url")
+            url=None
         )
 
 
@@ -413,7 +440,7 @@ class GoogleCalendarEventResponse:
             status=data.get("status", "confirmed")
         )
 
-    def to_calendar_event(self, calendar_id: str, calendar_name: str) -> "CalendarEvent":
+    def to_calendar_event(self, calendar_id: str, calendar_name: str, calendar_color: str | None = None) -> "CalendarEvent":
         """Convert to internal CalendarEvent model with timezone conversion to UTC.
 
         Uses the dateTime and timeZone fields from the API response to create
@@ -492,5 +519,96 @@ class GoogleCalendarEventResponse:
             all_day=is_all_day,
             calendar_id=calendar_id,
             calendar_name=calendar_name,
-            color_id=self.color_id
+            color_id=self.color_id,
+            calendar_color=calendar_color
         )
+
+
+# ============================================================================
+# NHL API parsing (unofficial api-web.nhle.com)
+# ============================================================================
+
+def find_final_series_letter(carousel: Dict[str, Any]) -> Optional[str]:
+    """
+    Given the playoff-series carousel response, return the series letter of the
+    Stanley Cup Final, or None if the final round isn't populated yet.
+    """
+    rounds = carousel.get("rounds", [])
+    for rnd in rounds:
+        label = (rnd.get("roundLabel") or "").lower()
+        if rnd.get("roundNumber") == 4 or "final" in label and "conference" not in label:
+            series = rnd.get("series", [])
+            if not series:
+                continue
+            s = series[0]
+            # Only treat as active once both seeds are real teams
+            top = s.get("topSeed", {}).get("abbrev")
+            bottom = s.get("bottomSeed", {}).get("abbrev")
+            if top and bottom and top != "TBD" and bottom != "TBD":
+                return s.get("seriesLetter")
+    return None
+
+
+def _nhl_team_from_seed(seed: Dict[str, Any]) -> "NhlTeam":
+    """Build an NhlTeam from a series-detail seed team object."""
+    from .internal import NhlTeam
+    name = seed.get("name", {})
+    place = seed.get("placeName", {})
+    return NhlTeam(
+        abbrev=seed.get("abbrev", "?"),
+        place=place.get("default", "") if isinstance(place, dict) else "",
+        name=name.get("default", "") if isinstance(name, dict) else "",
+        wins=seed.get("seriesWins", 0) or 0,
+        logo=seed.get("logo", ""),
+    )
+
+
+def parse_nhl_series(detail: Dict[str, Any]) -> Optional["NhlSeries"]:
+    """
+    Parse the playoff-series detail response into our internal NhlSeries model.
+
+    Returns None if the payload doesn't describe a valid two-team series.
+    """
+    from datetime import datetime
+    from .internal import NhlSeries, NhlGame
+
+    top_raw = detail.get("topSeedTeam") or {}
+    bottom_raw = detail.get("bottomSeedTeam") or {}
+    if not top_raw.get("abbrev") or not bottom_raw.get("abbrev"):
+        return None
+
+    top = _nhl_team_from_seed(top_raw)
+    bottom = _nhl_team_from_seed(bottom_raw)
+
+    games: List["NhlGame"] = []
+    for g in detail.get("games", []):
+        away = g.get("awayTeam", {})
+        home = g.get("homeTeam", {})
+        a_score = away.get("score")
+        h_score = home.get("score")
+        winner = None
+        if g.get("gameState") == "OFF" and a_score is not None and h_score is not None:
+            winner = away.get("abbrev") if a_score > h_score else home.get("abbrev")
+        games.append(NhlGame(
+            number=g.get("gameNumber", 0),
+            state=g.get("gameState", "FUT"),
+            away=away.get("abbrev", "?"),
+            home=home.get("abbrev", "?"),
+            away_score=a_score,
+            home_score=h_score,
+            winner=winner,
+            start_utc=g.get("startTimeUTC"),
+        ))
+
+    # Pretty round label: "stanley-cup-final" -> "Stanley Cup Final"
+    raw_label = detail.get("roundLabel", "stanley-cup-final")
+    round_label = raw_label.replace("-", " ").title()
+
+    return NhlSeries(
+        round_label=round_label,
+        needed_to_win=detail.get("neededToWin", 4),
+        top=top,
+        bottom=bottom,
+        games=games,
+        updated=datetime.now().strftime("%H:%M:%S"),
+    )
