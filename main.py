@@ -281,14 +281,20 @@ app = FastAPI(
 )
 
 
-# Add no-cache middleware for static files
+# Add no-cache middleware for the dashboard page and static files
 class NoCacheMiddleware(BaseHTTPMiddleware):
-    """Disable caching for static files to ensure browser always fetches latest version."""
+    """
+    Disable caching for the dashboard page and static files so the kiosk browser
+    always fetches the latest version after an update.
+
+    The page itself ("/") must be included: without a Cache-Control header the
+    browser may keep a stale index.html while loading fresh JS/CSS, leaving the
+    old markup paired with new scripts.
+    """
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Only apply no-cache headers to static files
-        if request.url.path.startswith("/static/"):
+        if request.url.path == "/" or request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
