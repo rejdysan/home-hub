@@ -62,8 +62,13 @@ class Config:
     GOOGLE_MAPS_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_MAPS_UPDATE_INTERVAL", "60"))  # 60 seconds
     TODOIST_UPDATE_INTERVAL: int = int(os.getenv("TODOIST_UPDATE_INTERVAL", "60"))  # 60 seconds
     GOOGLE_CALENDAR_UPDATE_INTERVAL: int = int(os.getenv("GOOGLE_CALENDAR_UPDATE_INTERVAL", "300"))  # 5 minutes
-    NHL_UPDATE_INTERVAL: int = int(os.getenv("NHL_UPDATE_INTERVAL", "120"))  # 2 minutes during the Finals
-    # Optional override; empty means auto-derive the season from the current date (e.g. "20252026")
+    # NHL tile (rotating scores / standings / bracket / leaders)
+    NHL_UPDATE_INTERVAL: int = int(os.getenv("NHL_UPDATE_INTERVAL", "300"))  # 5 minutes
+    NHL_LIVE_UPDATE_INTERVAL: int = int(os.getenv("NHL_LIVE_UPDATE_INTERVAL", "60"))  # while games are live
+    NHL_STANDINGS_UPDATE_INTERVAL: int = int(os.getenv("NHL_STANDINGS_UPDATE_INTERVAL", "1800"))  # 30 minutes
+    NHL_LEADERS_UPDATE_INTERVAL: int = int(os.getenv("NHL_LEADERS_UPDATE_INTERVAL", "3600"))  # 1 hour
+    NHL_TILE_ROTATE_INTERVAL: int = int(os.getenv("NHL_TILE_ROTATE_INTERVAL", "10"))  # seconds per view
+    # Optional override; empty means auto-derive the season from the current date (e.g. "20262027")
     NHL_SEASON: str = os.getenv("NHL_SEASON", "")
 
     # MQTT Throttle

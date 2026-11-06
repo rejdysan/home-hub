@@ -1,10 +1,10 @@
 """Models for external API responses (Golemio, OpenMeteo, Nameday, Todoist)."""
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from zoneinfo import ZoneInfo
 
-from .enums import WEATHER_DESCRIPTIONS
+from .enums import WEATHER_DESCRIPTIONS, ApiUrl
 
 
 @dataclass
@@ -525,90 +525,237 @@ class GoogleCalendarEventResponse:
 
 
 # ============================================================================
-# NHL API parsing (unofficial api-web.nhle.com)
+# NHL tile parsing (unofficial api-web.nhle.com)
 # ============================================================================
 
-def find_final_series_letter(carousel: Dict[str, Any]) -> Optional[str]:
-    """
-    Given the playoff-series carousel response, return the series letter of the
-    Stanley Cup Final, or None if the final round isn't populated yet.
-    """
-    rounds = carousel.get("rounds", [])
-    for rnd in rounds:
-        label = (rnd.get("roundLabel") or "").lower()
-        if rnd.get("roundNumber") == 4 or "final" in label and "conference" not in label:
-            series = rnd.get("series", [])
-            if not series:
-                continue
-            s = series[0]
-            # Only treat as active once both seeds are real teams
-            top = s.get("topSeed", {}).get("abbrev")
-            bottom = s.get("bottomSeed", {}).get("abbrev")
-            if top and bottom and top != "TBD" and bottom != "TBD":
-                return s.get("seriesLetter")
-    return None
+def _nhl_text(value: Any) -> str:
+    """NHL API strings are usually {"default": "..."}; accept plain strings too."""
+    if isinstance(value, dict):
+        return value.get("default", "") or ""
+    return value or ""
 
 
-def _nhl_team_from_seed(seed: Dict[str, Any]) -> "NhlTeam":
-    """Build an NhlTeam from a series-detail seed team object."""
-    from .internal import NhlTeam
-    name = seed.get("name", {})
-    place = seed.get("placeName", {})
-    return NhlTeam(
-        abbrev=seed.get("abbrev", "?"),
-        place=place.get("default", "") if isinstance(place, dict) else "",
-        name=name.get("default", "") if isinstance(name, dict) else "",
-        wins=seed.get("seriesWins", 0) or 0,
-        logo=seed.get("logo", ""),
+def _nhl_period_label(period_descriptor: Dict[str, Any]) -> str:
+    """Short period label: P1..P3, OT (2OT, 3OT in the playoffs), SO."""
+    period_type = period_descriptor.get("periodType", "REG")
+    number = period_descriptor.get("number", 0) or 0
+    if period_type == "SO":
+        return "SO"
+    if period_type == "OT":
+        return "OT" if number <= 4 else f"{number - 3}OT"
+    return f"P{number}"
+
+
+def _nhl_series_text(status: Dict[str, Any]) -> Optional[str]:
+    """Series state from the score feed's seriesStatus, e.g. "BOS leads 3–1"."""
+    top, bottom = status.get("topSeedTeamAbbrev"), status.get("bottomSeedTeamAbbrev")
+    if not top or not bottom:
+        return None
+    top_wins = status.get("topSeedWins", 0) or 0
+    bottom_wins = status.get("bottomSeedWins", 0) or 0
+    needed = status.get("neededToWin", 4) or 4
+    if top_wins >= needed:
+        return f"{top} wins series {top_wins}–{bottom_wins}"
+    if bottom_wins >= needed:
+        return f"{bottom} wins series {bottom_wins}–{top_wins}"
+    if top_wins == bottom_wins:
+        return f"Series tied {top_wins}–{bottom_wins}"
+    leader, hi, lo = (top, top_wins, bottom_wins) if top_wins > bottom_wins else (bottom, bottom_wins, top_wins)
+    return f"{leader} leads {hi}–{lo}"
+
+
+def _nhl_score_team(team: Dict[str, Any]) -> "NhlScoreTeam":
+    from .internal import NhlScoreTeam
+    return NhlScoreTeam(
+        abbrev=team.get("abbrev", "?"),
+        name=_nhl_text(team.get("name")),
+        score=team.get("score"),
+        sog=team.get("sog"),
     )
 
 
-def parse_nhl_series(detail: Dict[str, Any]) -> Optional["NhlSeries"]:
+def _nhl_decider(game: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Parse the playoff-series detail response into our internal NhlSeries model.
+    Find the goal that decided a finished game.
 
-    Returns None if the payload doesn't describe a valid two-team series.
+    For regulation/OT games that's the game-winning goal: the winner's goal that
+    took them one past the loser's final score. Shootout games are decided by
+    the shootout winner (the feed lists it as a goal with periodType "SO").
     """
-    from datetime import datetime
-    from .internal import NhlSeries, NhlGame
-
-    top_raw = detail.get("topSeedTeam") or {}
-    bottom_raw = detail.get("bottomSeedTeam") or {}
-    if not top_raw.get("abbrev") or not bottom_raw.get("abbrev"):
+    if game.get("gameState") not in ("OFF", "FINAL"):
+        return None
+    away_final = (game.get("awayTeam") or {}).get("score")
+    home_final = (game.get("homeTeam") or {}).get("score")
+    if away_final is None or home_final is None or away_final == home_final:
         return None
 
-    top = _nhl_team_from_seed(top_raw)
-    bottom = _nhl_team_from_seed(bottom_raw)
+    goals = game.get("goals", [])
+    shootout = [g for g in goals if (g.get("periodDescriptor") or {}).get("periodType") == "SO"]
+    if shootout:
+        return shootout[-1]
 
-    games: List["NhlGame"] = []
-    for g in detail.get("games", []):
-        away = g.get("awayTeam", {})
-        home = g.get("homeTeam", {})
-        a_score = away.get("score")
-        h_score = home.get("score")
-        winner = None
-        if g.get("gameState") == "OFF" and a_score is not None and h_score is not None:
-            winner = away.get("abbrev") if a_score > h_score else home.get("abbrev")
-        games.append(NhlGame(
-            number=g.get("gameNumber", 0),
+    home_won = home_final > away_final
+    winner = (game.get("homeTeam") if home_won else game.get("awayTeam")) or {}
+    target = min(away_final, home_final) + 1
+    for goal in goals:
+        if _nhl_text(goal.get("teamAbbrev")) != winner.get("abbrev"):
+            continue
+        if goal.get("homeScore" if home_won else "awayScore") == target:
+            return goal
+    return None
+
+
+def parse_nhl_score_games(data: Dict[str, Any]) -> List["NhlScoreGame"]:
+    """Parse the /v1/score/{date} response into scoreboard games, earliest first."""
+    from .internal import NhlScoreGame
+
+    games: List["NhlScoreGame"] = []
+    for g in data.get("games", []):
+        descriptor = g.get("periodDescriptor") or {}
+        outcome = g.get("gameOutcome") or {}
+        clock = g.get("clock") or {}
+
+        series = g.get("seriesStatus") or {}
+        decider = _nhl_decider(g)
+        decider_when = None
+        if decider:
+            label = _nhl_period_label(decider.get("periodDescriptor") or {})
+            decider_when = label if label == "SO" else f"{label} {decider.get('timeInPeriod', '')}".strip()
+
+        games.append(NhlScoreGame(
+            id=g.get("id", 0),
             state=g.get("gameState", "FUT"),
-            away=away.get("abbrev", "?"),
-            home=home.get("abbrev", "?"),
-            away_score=a_score,
-            home_score=h_score,
-            winner=winner,
-            start_utc=g.get("startTimeUTC"),
+            schedule_state=g.get("gameScheduleState", "OK"),
+            start_utc=g.get("startTimeUTC", ""),
+            away=_nhl_score_team(g.get("awayTeam") or {}),
+            home=_nhl_score_team(g.get("homeTeam") or {}),
+            period=g.get("period") or descriptor.get("number") or 0,
+            period_type=outcome.get("lastPeriodType") or descriptor.get("periodType") or "REG",
+            clock=clock.get("timeRemaining", "") or "",
+            in_intermission=bool(clock.get("inIntermission")),
+            game_type=g.get("gameType", 2) or 2,
+            series_letter=series.get("seriesLetter"),
+            series_game=series.get("gameNumberOfSeries"),
+            series_status=_nhl_series_text(series) if series else None,
+            decider=_nhl_text(decider.get("name")) if decider else None,
+            decider_team=_nhl_text(decider.get("teamAbbrev")) if decider else None,
+            decider_when=decider_when,
         ))
 
-    # Pretty round label: "stanley-cup-final" -> "Stanley Cup Final"
-    raw_label = detail.get("roundLabel", "stanley-cup-final")
-    round_label = raw_label.replace("-", " ").title()
+    games.sort(key=lambda x: (x.start_utc, x.id))
+    return games
 
-    return NhlSeries(
-        round_label=round_label,
-        needed_to_win=detail.get("neededToWin", 4),
-        top=top,
-        bottom=bottom,
-        games=games,
-        updated=datetime.now().strftime("%H:%M:%S"),
+
+def parse_nhl_standings(data: Dict[str, Any]) -> List["NhlStanding"]:
+    """Parse /v1/standings/now into rows ordered by division, then division rank."""
+    from .internal import NhlStanding
+
+    rows: List["NhlStanding"] = []
+    for r in data.get("standings", []):
+        streak_code = r.get("streakCode") or ""
+        rows.append(NhlStanding(
+            abbrev=_nhl_text(r.get("teamAbbrev")),
+            place=_nhl_text(r.get("placeName")),
+            name=_nhl_text(r.get("teamCommonName")),
+            conference=r.get("conferenceName", ""),
+            division=r.get("divisionName", ""),
+            games_played=r.get("gamesPlayed", 0) or 0,
+            wins=r.get("wins", 0) or 0,
+            losses=r.get("losses", 0) or 0,
+            ot_losses=r.get("otLosses", 0) or 0,
+            points=r.get("points", 0) or 0,
+            point_pct=round(r.get("pointPctg", 0.0) or 0.0, 3),
+            goal_diff=r.get("goalDifferential", 0) or 0,
+            l10=f"{r.get('l10Wins', 0)}-{r.get('l10Losses', 0)}-{r.get('l10OtLosses', 0)}",
+            streak=f"{streak_code}{r.get('streakCount', 0)}" if streak_code else "",
+            division_rank=r.get("divisionSequence", 0) or 0,
+            conference_rank=r.get("conferenceSequence", 0) or 0,
+            league_rank=r.get("leagueSequence", 0) or 0,
+            wildcard_rank=r.get("wildcardSequence", 0) or 0,
+            clinch=r.get("clinchIndicator") or None,
+        ))
+
+    rows.sort(key=lambda s: (s.conference, s.division, s.division_rank))
+    return rows
+
+
+def parse_nhl_leaders(data: Dict[str, Any], categories: List[Tuple[str, str]]) -> List["NhlLeaderBoard"]:
+    """Parse a skater/goalie stats-leaders response into ordered leader boards."""
+    from .internal import NhlLeader, NhlLeaderBoard
+
+    boards: List["NhlLeaderBoard"] = []
+    for key, label in categories:
+        leaders = [
+            NhlLeader(
+                player_id=p.get("id", 0),
+                first_name=_nhl_text(p.get("firstName")),
+                last_name=_nhl_text(p.get("lastName")),
+                team=_nhl_text(p.get("teamAbbrev")),
+                headshot=p.get("headshot", ""),
+                number=p.get("sweaterNumber"),
+                position=p.get("position", ""),
+                value=float(p.get("value") or 0),
+            )
+            for p in data.get(key, [])
+        ]
+        boards.append(NhlLeaderBoard(category=key, label=label, leaders=leaders))
+    return boards
+
+
+def parse_nhl_bracket(data: Dict[str, Any]) -> Optional["NhlBracket"]:
+    """
+    Parse /v1/playoff-bracket/{year}. Returns None until the playoffs have matchups.
+
+    Stage = the earliest round that still has an undecided series (1-4), or 5
+    once the Stanley Cup Final is won. Between rounds it points at the next one.
+    """
+    from .internal import NhlBracket, NhlBracketSeries, NhlBracketTeam
+
+    def team(raw: Dict[str, Any], seed: Optional[str], wins: Optional[int]) -> Optional["NhlBracketTeam"]:
+        if not raw.get("abbrev"):
+            return None
+        return NhlBracketTeam(
+            abbrev=raw["abbrev"],
+            name=_nhl_text(raw.get("commonName")),
+            seed=seed or "",
+            wins=wins or 0,
+        )
+
+    series_list: List["NhlBracketSeries"] = []
+    for s in data.get("series", []):
+        top_raw = s.get("topSeedTeam") or {}
+        bottom_raw = s.get("bottomSeedTeam") or {}
+        winner_id = s.get("winningTeamId")
+        winner = None
+        if winner_id:
+            if top_raw.get("id") == winner_id:
+                winner = top_raw.get("abbrev")
+            elif bottom_raw.get("id") == winner_id:
+                winner = bottom_raw.get("abbrev")
+        series_list.append(NhlBracketSeries(
+            letter=s.get("seriesLetter", ""),
+            round=s.get("playoffRound", 0) or 0,
+            title=s.get("seriesTitle", ""),
+            top=team(top_raw, s.get("topSeedRankAbbrev"), s.get("topSeedWins")),
+            bottom=team(bottom_raw, s.get("bottomSeedRankAbbrev"), s.get("bottomSeedWins")),
+            winner=winner,
+        ))
+
+    if not any(x.top or x.bottom for x in series_list):
+        return None
+
+    series_list.sort(key=lambda x: x.letter)
+    final = next((x for x in series_list if x.round == 4), None)
+    undecided = [x.round for x in series_list if x.top and x.bottom and not x.winner]
+    if undecided:
+        stage = min(undecided)
+    elif final and final.winner:
+        stage = 5
+    else:
+        stage = min(4, max(x.round for x in series_list) + 1)
+
+    return NhlBracket(
+        stage=stage,
+        series=series_list,
+        champion=final.winner if final and final.winner else None,
     )

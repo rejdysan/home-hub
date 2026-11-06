@@ -1,6 +1,6 @@
 """Enums and constants used across the application."""
 from enum import Enum
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 
 class ThermalSensor(str, Enum):
@@ -61,10 +61,47 @@ class ApiUrl(str, Enum):
     OPEN_METEO = "https://api.open-meteo.com/v1/forecast"
     TODOIST_TASKS = "https://api.todoist.com/api/v1/tasks"
     TODOIST_PROJECTS = "https://api.todoist.com/api/v1/projects"
-    # NHL (unofficial public API). {season} = e.g. 20252026, {letter} = series letter
-    NHL_PLAYOFF_CAROUSEL = "https://api-web.nhle.com/v1/playoff-series/carousel/{season}/"
-    NHL_PLAYOFF_SERIES = "https://api-web.nhle.com/v1/schedule/playoff-series/{season}/{letter}/"
+    # NHL (unofficial public API, api-web.nhle.com)
+    # {date} = YYYY-MM-DD NHL game date (North American Eastern)
+    NHL_SCORE = "https://api-web.nhle.com/v1/score/{date}"
+    NHL_STANDINGS = "https://api-web.nhle.com/v1/standings/now"
+    # {year} = year the playoffs are played in (second half of the season id)
+    NHL_PLAYOFF_BRACKET = "https://api-web.nhle.com/v1/playoff-bracket/{year}"
+    # {season} = e.g. 20262027, {game_type} = NhlGameType (2 regular season, 3 playoffs)
+    NHL_SKATER_LEADERS = "https://api-web.nhle.com/v1/skater-stats-leaders/{season}/{game_type}"
+    NHL_GOALIE_LEADERS = "https://api-web.nhle.com/v1/goalie-stats-leaders/{season}/{game_type}"
+    # Player headshot fallback (for players the score feed lists without a mugshot)
+    NHL_MUGSHOT = "https://assets.nhle.com/mugs/nhl/{season}/{team}/{player_id}.png"
 
+
+class NhlPhase(str, Enum):
+    """Which part of the NHL season the tile is showing."""
+    REGULAR = "regular"    # scores, standings, regular-season leaders
+    PLAYOFFS = "playoffs"  # bracket, playoff leaders (kept through the summer)
+
+
+class NhlGameType(int, Enum):
+    """NHL API game types."""
+    PRESEASON = 1
+    REGULAR = 2
+    PLAYOFFS = 3
+
+
+# NHL tile leader boards: (API category key, display label), in display order
+NHL_SKATER_LEADER_CATEGORIES: List[Tuple[str, str]] = [
+    ("points", "Points"),
+    ("goals", "Goals"),
+    ("assists", "Assists"),
+]
+
+NHL_GOALIE_LEADER_CATEGORIES: List[Tuple[str, str]] = [
+    ("wins", "Wins"),
+    ("savePctg", "Save %"),
+    ("goalsAgainstAverage", "GAA"),
+]
+
+# How many players each leader board fetches (the tile shows as many as fit)
+NHL_LEADERS_LIMIT = 10
 
 
 # OpenMeteo API parameters
@@ -114,6 +151,8 @@ class ApiParam(str, Enum):
     COUNTRY = "country"
     # Todoist
     PROJECT_ID = "project_id"
+    # NHL stats leaders
+    CATEGORIES = "categories"
     # Google Calendar
     CALENDAR_ID = "calendarId"
     TIME_MIN = "timeMin"
