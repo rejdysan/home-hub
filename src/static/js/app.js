@@ -10,6 +10,7 @@
  * - transport.js: Bus list rendering
  * - updates.js: UI update functions
  * - websocket.js: WebSocket connection handling
+ * - nhl.js: Rotating NHL tile
  * - kiosk.js: Kiosk mode management
  */
 
@@ -32,6 +33,9 @@ function initializeApp() {
 
     // Fetch config and set up dynamic refresh intervals
     fetchConfigAndSetupIntervals();
+
+    // Start the NHL tile rotation (interval refined once config arrives)
+    NhlTile.init(Interval.DEFAULT_NHL_ROTATE);
 
     // Start WebSocket connection
     window.connect();
@@ -74,6 +78,9 @@ function fetchConfigAndSetupIntervals() {
             const map2Tag = document.getElementById(ElementId.UPDATE_MAP_2);
             if (map1Tag) map1Tag.innerText = timestamp;
             if (map2Tag) map2Tag.innerText = timestamp;
+
+            // NHL tile: seconds per view
+            if (cfg.nhl_tile_rotate_interval) NhlTile.setRotateInterval(cfg.nhl_tile_rotate_interval);
 
             // Set up map refresh interval
             setInterval(window.refreshMaps, cfg.google_maps_update_interval);

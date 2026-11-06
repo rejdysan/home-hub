@@ -1,10 +1,12 @@
 import asyncio
+import time
 import httpx
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from src import mqtt_handler, sensor_cache
 from src.config import config
@@ -20,7 +22,9 @@ from src.models import (
     TodoistData, TodoistProject, TodoistTask, TodoistMessage,
     TodoistTaskResponse, TodoistProjectResponse,
     CalendarData, CalendarMessage,
-    NhlSeries, NhlMessage, find_final_series_letter, parse_nhl_series
+    NhlLeague, NhlMessage, NhlPhase, NhlGameType, NhlBracket, NhlScoreGame,
+    parse_nhl_score_games, parse_nhl_standings, parse_nhl_leaders, parse_nhl_bracket,
+    NHL_SKATER_LEADER_CATEGORIES, NHL_GOALIE_LEADER_CATEGORIES, NHL_LEADERS_LIMIT
 )
 from src.system_info import live_system_stats, check_wifi_connectivity
 from src.websocket_manager import manager
@@ -34,7 +38,7 @@ latest_nameday: str = "..."
 latest_departures: BusDepartures = BusDepartures()
 latest_todoist: TodoistData | None = None
 latest_calendar: CalendarData | None = None
-latest_nhl: NhlSeries | None = None
+latest_nhl: NhlLeague | None = None
 
 # Thread safety: Lock to protect global cache variables
 _cache_lock = asyncio.Lock()
@@ -138,7 +142,7 @@ async def update_calendar_data() -> None:
 
 
 def _current_nhl_season() -> str:
-    """Derive the NHL season id (e.g. '20252026') from the current date, or use the override."""
+    """Derive the NHL season id (e.g. '20262027') from the current date, or use the override."""
     if config.NHL_SEASON:
         return config.NHL_SEASON
     now = datetime.now()
@@ -146,94 +150,163 @@ def _current_nhl_season() -> str:
     return f"{start_year}{start_year + 1}"
 
 
-def _nhl_still_visible(series: NhlSeries) -> bool:
-    """
-    Decide whether the final tile should still be shown.
+async def _fetch_nhl_json(client: httpx.AsyncClient, url: str, params: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """GET an NHL API endpoint; returns None (and logs) on any failure so other sections still refresh."""
+    try:
+        response = await client.get(url, params=params, timeout=10.0, follow_redirects=True)
+        if response.status_code == 200:
+            return response.json()
+        logger.warning(f"⚠️ NHL API returned status {response.status_code} for {url}")
+    except httpx.TimeoutException:
+        logger.warning(f"⚠️ NHL API timeout for {url}")
+    except Exception as e:
+        logger.error(f"⚠️ NHL API error for {url}: {e}")
+    return None
 
-    Visible while the series is live, and for one extra day after it's decided;
-    hidden once the clinching game is more than a day in the past.
-    """
-    decided = series.top.wins >= series.needed_to_win or series.bottom.wins >= series.needed_to_win
-    if not decided:
-        return True
 
-    # Series over: keep the tile until the day after the clinching (last finished) game
-    clinch_dates = []
-    for g in series.games:
-        if g.state == "OFF" and g.start_utc:
-            try:
-                clinch_dates.append(datetime.fromisoformat(g.start_utc.replace("Z", "+00:00")).date())
-            except ValueError:
-                pass
-    if not clinch_dates:
+def _nhl_playoffs_active(bracket: NhlBracket | None, results: List[NhlScoreGame]) -> bool:
+    """
+    True while the playoffs are on: the bracket has matchups and the Cup is not
+    decided yet — or it was decided last night (the clinching game of the
+    Stanley Cup Final is among last night's results), so the champion shows on
+    the morning after and then the tile returns to the regular-season views.
+    """
+    if bracket is None:
+        return False
+    if bracket.stage < 5:
         return True
-    return datetime.now().date() <= max(clinch_dates) + timedelta(days=1)
+    final = next((s for s in bracket.series if s.round == 4), None)
+    return final is not None and any(g.series_letter == final.letter for g in results)
 
 
 async def update_nhl_data() -> None:
     """
-    Background task to fetch the NHL Stanley Cup Final series.
+    Background task feeding the rotating NHL tile, all season long.
 
-    Finds the final series from the playoff carousel, then fetches its
-    game-by-game detail. Sets latest_nhl to None outside the Finals so the
-    frontend hides the panel automatically.
+    Playoff mode (bracket + playoff stats) runs only while the playoffs are on:
+    from the first matchups until the morning after the Cup is won (the
+    clinching game is in last night's results). Before and after that the tile
+    shows the regular season, so last season's bracket never lingers.
+
+    "Last night" / "tonight" use the Prague calendar: games on NHL date D end in
+    Prague's early morning of D+1, so last night's results are always the NHL
+    date of yesterday (Prague). Scoreboards and the bracket refresh every cycle
+    (faster while games are live); standings and leaders on slower timers.
+    A failed section keeps its previous data instead of blanking the tile.
     """
     global latest_nhl
 
-    logger.info("🏒 NHL Stanley Cup Final monitoring started")
+    logger.info("🏒 NHL monitoring started")
 
     client = get_http_client()
-    while True:
-        try:
-            season = _current_nhl_season()
+    prague = ZoneInfo(ApiValue.TIMEZONE_PRAGUE.value)
 
-            # 1) Carousel → which series is the final, if any
-            carousel_resp = await client.get(
-                ApiUrl.NHL_PLAYOFF_CAROUSEL.value.format(season=season),
-                timeout=10.0, follow_redirects=True
+    season = ""
+    phase = NhlPhase.REGULAR.value
+    bracket = None  # this season's bracket as last fetched (None until matchups exist)
+    results_date, results = "", []
+    upcoming_date, upcoming = "", []
+    standings: list = []
+    skater_leaders: list = []
+    goalie_leaders: list = []
+    standings_fetched_at: float | None = None
+    leaders_fetched_at: float | None = None
+    leaders_key = ""  # "<season>/<game type>" the leader boards belong to
+
+    while True:
+        live = False
+        try:
+            current_season = _current_nhl_season()
+            if current_season != season:
+                # New season: forget last season's playoffs and stats
+                season, phase, bracket = current_season, NhlPhase.REGULAR.value, None
+                skater_leaders, goalie_leaders, leaders_key = [], [], ""
+            today = datetime.now(prague).date()
+
+            # 1) Playoff bracket
+            data = await _fetch_nhl_json(client, ApiUrl.NHL_PLAYOFF_BRACKET.value.format(year=season[4:]))
+            if data is not None:
+                bracket = parse_nhl_bracket(data)
+
+            # 2) Last night's scoreboard
+            date = (today - timedelta(days=1)).isoformat()
+            data = await _fetch_nhl_json(client, ApiUrl.NHL_SCORE.value.format(date=date))
+            if data is not None:
+                results_date, results = date, parse_nhl_score_games(data)
+
+            # 3) Tonight's games (start times shown in Prague time by the frontend)
+            date = today.isoformat()
+            data = await _fetch_nhl_json(client, ApiUrl.NHL_SCORE.value.format(date=date))
+            if data is not None:
+                upcoming_date, upcoming = date, parse_nhl_score_games(data)
+
+            # Phase: playoffs only while they are actually happening
+            active_bracket = bracket if _nhl_playoffs_active(bracket, results) else None
+            phase = NhlPhase.PLAYOFFS.value if active_bracket else NhlPhase.REGULAR.value
+
+            # 4) Standings (regular season only; the bracket replaces them in the playoffs)
+            now_mono = time.monotonic()
+            if phase == NhlPhase.REGULAR.value and (
+                    standings_fetched_at is None
+                    or now_mono - standings_fetched_at >= config.NHL_STANDINGS_UPDATE_INTERVAL):
+                data = await _fetch_nhl_json(client, ApiUrl.NHL_STANDINGS.value)
+                if data is not None:
+                    standings = parse_nhl_standings(data)
+                    standings_fetched_at = now_mono
+
+            # 5) Skater + goalie leaders for the current phase
+            game_type = (NhlGameType.PLAYOFFS if phase == NhlPhase.PLAYOFFS.value else NhlGameType.REGULAR).value
+            key = f"{season}/{game_type}"
+            if (key != leaders_key or leaders_fetched_at is None
+                    or now_mono - leaders_fetched_at >= config.NHL_LEADERS_UPDATE_INTERVAL):
+                skater_data = await _fetch_nhl_json(
+                    client, ApiUrl.NHL_SKATER_LEADERS.value.format(season=season, game_type=game_type), {
+                        ApiParam.CATEGORIES.value: ",".join(k for k, _ in NHL_SKATER_LEADER_CATEGORIES),
+                        ApiParam.LIMIT.value: NHL_LEADERS_LIMIT,
+                    })
+                goalie_data = await _fetch_nhl_json(
+                    client, ApiUrl.NHL_GOALIE_LEADERS.value.format(season=season, game_type=game_type), {
+                        ApiParam.CATEGORIES.value: ",".join(k for k, _ in NHL_GOALIE_LEADER_CATEGORIES),
+                        ApiParam.LIMIT.value: NHL_LEADERS_LIMIT,
+                    })
+                if skater_data is not None:
+                    skater_leaders = parse_nhl_leaders(skater_data, NHL_SKATER_LEADER_CATEGORIES)
+                if goalie_data is not None:
+                    goalie_leaders = parse_nhl_leaders(goalie_data, NHL_GOALIE_LEADER_CATEGORIES)
+                if skater_data is not None and goalie_data is not None:
+                    leaders_fetched_at, leaders_key = now_mono, key
+
+            new_nhl = NhlLeague(
+                season=season,
+                phase=phase,
+                bracket=active_bracket,
+                results_date=results_date,
+                results=results,
+                upcoming_date=upcoming_date,
+                upcoming=upcoming,
+                standings=standings,
+                skater_leaders=skater_leaders,
+                goalie_leaders=goalie_leaders,
+                updated=datetime.now().strftime("%H:%M:%S"),
             )
-            new_nhl: NhlSeries | None = None
-            if carousel_resp.status_code == 200:
-                letter = find_final_series_letter(carousel_resp.json())
-                if letter:
-                    # 2) Series detail → game-by-game
-                    detail_resp = await client.get(
-                        ApiUrl.NHL_PLAYOFF_SERIES.value.format(season=season, letter=letter.lower()),
-                        timeout=10.0, follow_redirects=True
-                    )
-                    if detail_resp.status_code == 200:
-                        new_nhl = parse_nhl_series(detail_resp.json())
-                        # Hide the tile once the final has been over for more than a day
-                        if new_nhl is not None and not _nhl_still_visible(new_nhl):
-                            logger.debug("🏒 Final decided >1 day ago — hiding panel")
-                            new_nhl = None
-                else:
-                    logger.debug("🏒 No Stanley Cup Final series active")
-            else:
-                logger.warning(f"⚠️ NHL carousel returned status {carousel_resp.status_code}")
+            live = new_nhl.has_live_games()
 
             async with _cache_lock:
-                changed = (
-                    (latest_nhl is None) != (new_nhl is None)
-                    or (new_nhl is not None and latest_nhl is not None
-                        and not new_nhl.equals_ignoring_updated(latest_nhl))
-                )
-                if changed:
+                if latest_nhl is None or not new_nhl.equals_ignoring_updated(latest_nhl):
                     latest_nhl = new_nhl
-                    logger.info(
-                        f"🏒 NHL updated: {new_nhl.top.abbrev} {new_nhl.top.wins}-{new_nhl.bottom.wins} {new_nhl.bottom.abbrev}"
-                        if new_nhl else "🏒 NHL: no active final (panel hidden)"
+                    logger.debug(
+                        f"🏒 NHL updated: {phase}, {len(results)} results, {len(upcoming)} upcoming, "
+                        f"{len(standings)} teams, stage={active_bracket.stage if active_bracket else '-'}, live={live}"
                     )
-                    await manager.broadcast(NhlMessage(nhl=latest_nhl).to_dict())
+                    await manager.broadcast(NhlMessage(league=latest_nhl).to_dict())
                 else:
+                    latest_nhl.updated = new_nhl.updated
                     logger.debug("🏒 NHL data unchanged")
 
-        except httpx.TimeoutException:
-            logger.warning("⚠️ NHL API timeout")
         except Exception as e:
-            logger.error(f"⚠️ NHL data error: {e}")
+            logger.error(f"⚠️ NHL data error: {e}", exc_info=True)
 
-        await asyncio.sleep(config.NHL_UPDATE_INTERVAL)
+        await asyncio.sleep(config.NHL_LIVE_UPDATE_INTERVAL if live else config.NHL_UPDATE_INTERVAL)
 
 
 async def update_bus_data() -> None:
@@ -629,7 +702,8 @@ async def get_frontend_config():
         google_calendar_update_interval=config.GOOGLE_CALENDAR_UPDATE_INTERVAL * 1000,
         morning_mode_start=config.MORNING_MODE_START,
         day_mode_start=config.DAY_MODE_START,
-        night_mode_start=config.NIGHT_MODE_START
+        night_mode_start=config.NIGHT_MODE_START,
+        nhl_tile_rotate_interval=config.NHL_TILE_ROTATE_INTERVAL * 1000
     )
     logger.info(f"📋 Config API: {frontend_config.to_dict()}")
     return frontend_config.to_dict()

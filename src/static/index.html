@@ -84,10 +84,21 @@
             </div>
         </div>
 
-        <!-- NHL Stanley Cup Final (shown in day mode while the Finals are live) -->
+        <!-- NHL tile (day mode): rotating scores / standings / playoff bracket / leaders -->
         <div class="rect nhl-rect" id="nhl-rect">
-            <div class="nhl-panel" id="nhl-panel">
-                <div class="nhl-loading">Loading Stanley Cup Final…</div>
+            <div class="nhl-panel">
+                <div class="nhl-header">
+                    <img class="nhl-brand" src="https://assets.nhle.com/logos/nhl/svg/NHL_dark.svg" alt="NHL">
+                    <div class="nhl-titles">
+                        <span class="nhl-title" id="nhl-title">NHL</span>
+                        <span class="nhl-sub" id="nhl-sub">Loading…</span>
+                    </div>
+                    <div class="nhl-dots" id="nhl-dots"></div>
+                </div>
+                <div class="nhl-body" id="nhl-body">
+                    <div class="nhl-empty">Loading NHL…</div>
+                </div>
+                <div class="nhl-progress"><i id="nhl-progress-bar"></i></div>
             </div>
         </div>
     </div>

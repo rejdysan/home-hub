@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 from .enums import WebSocketMessageType
 from .internal import (
     SensorStatus, SensorReading, SystemStats, SystemHealth,
-    BusDepartures, CurrentWeather, TodoistData, CalendarData, NhlSeries
+    BusDepartures, CurrentWeather, TodoistData, CalendarData, NhlLeague
 )
 
 
@@ -150,16 +150,16 @@ class CalendarMessage(BaseWebSocketMessage):
 
 @dataclass
 class NhlMessage(BaseWebSocketMessage):
-    """WebSocket message for NHL Stanley Cup Final updates."""
-    nhl: Optional[NhlSeries]
+    """WebSocket message for the rotating NHL tile."""
+    league: NhlLeague
 
     @property
     def message_type(self) -> WebSocketMessageType:
         return WebSocketMessageType.NHL
 
     @property
-    def data(self) -> Optional[Dict[str, Any]]:
-        return self.nhl.to_dict() if self.nhl else None
+    def data(self) -> Dict[str, Any]:
+        return self.league.to_dict()
 
 
 @dataclass
@@ -174,7 +174,7 @@ class InitialStateMessage(BaseWebSocketMessage):
     transport: BusDepartures
     todoist: Optional[TodoistData]
     calendar: Optional[CalendarData]
-    nhl: Optional[NhlSeries] = None
+    nhl: Optional[NhlLeague] = None
 
     @property
     def message_type(self) -> WebSocketMessageType:

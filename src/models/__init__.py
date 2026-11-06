@@ -26,6 +26,11 @@ from .enums import (
     WEATHER_CURRENT_PARAMS,
     WEATHER_DAILY_PARAMS,
     WEATHER_HOURLY_PARAMS,
+    NhlPhase,
+    NhlGameType,
+    NHL_SKATER_LEADER_CATEGORIES,
+    NHL_GOALIE_LEADER_CATEGORIES,
+    NHL_LEADERS_LIMIT,
 )
 
 # External API models
@@ -46,8 +51,10 @@ from .external_apis import (
     TodoistProjectResponse,
     GoogleCalendarEventTime,
     GoogleCalendarEventResponse,
-    find_final_series_letter,
-    parse_nhl_series,
+    parse_nhl_score_games,
+    parse_nhl_standings,
+    parse_nhl_leaders,
+    parse_nhl_bracket,
 )
 
 # Internal application models
@@ -65,9 +72,15 @@ from .internal import (
     TodoistData,
     CalendarEvent,
     CalendarData,
-    NhlTeam,
-    NhlGame,
-    NhlSeries,
+    NhlScoreTeam,
+    NhlScoreGame,
+    NhlStanding,
+    NhlLeader,
+    NhlLeaderBoard,
+    NhlBracketTeam,
+    NhlBracketSeries,
+    NhlBracket,
+    NhlLeague,
 )
 
 # WebSocket message models
@@ -103,6 +116,11 @@ __all__ = [
     "WEATHER_CURRENT_PARAMS",
     "WEATHER_DAILY_PARAMS",
     "WEATHER_HOURLY_PARAMS",
+    "NhlPhase",
+    "NhlGameType",
+    "NHL_SKATER_LEADER_CATEGORIES",
+    "NHL_GOALIE_LEADER_CATEGORIES",
+    "NHL_LEADERS_LIMIT",
     # External APIs
     "GolemioTimestamp",
     "GolemioDelay",
@@ -120,8 +138,10 @@ __all__ = [
     "TodoistProjectResponse",
     "GoogleCalendarEventTime",
     "GoogleCalendarEventResponse",
-    "find_final_series_letter",
-    "parse_nhl_series",
+    "parse_nhl_score_games",
+    "parse_nhl_standings",
+    "parse_nhl_leaders",
+    "parse_nhl_bracket",
     # Internal
     "FrontendConfig",
     "SystemStats",
@@ -136,9 +156,15 @@ __all__ = [
     "TodoistData",
     "CalendarEvent",
     "CalendarData",
-    "NhlTeam",
-    "NhlGame",
-    "NhlSeries",
+    "NhlScoreTeam",
+    "NhlScoreGame",
+    "NhlStanding",
+    "NhlLeader",
+    "NhlLeaderBoard",
+    "NhlBracketTeam",
+    "NhlBracketSeries",
+    "NhlBracket",
+    "NhlLeague",
     # WebSocket
     "BaseWebSocketMessage",
     "TodoistMessage",
