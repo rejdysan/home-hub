@@ -29,6 +29,7 @@ from src.models import (
 from src.system_info import live_system_stats, check_wifi_connectivity
 from src.websocket_manager import manager
 from src.calendar_service import GoogleCalendarService
+from src.photo_library import PhotoLibrary, DrivePhotoSource
 
 router = APIRouter()
 
@@ -49,6 +50,11 @@ _http_client: httpx.AsyncClient | None = None
 
 # Google Calendar service instance
 _calendar_service: GoogleCalendarService | None = None
+
+# Photo tile library (originals -> display-sized cache)
+_photo_library: PhotoLibrary | None = None
+
+PROJECT_ROOT = Path(__file__).parent.parent
 
 
 def get_http_client() -> httpx.AsyncClient:
@@ -139,6 +145,51 @@ async def update_calendar_data() -> None:
             logger.error(f"⚠️ Calendar data error: {e}")
 
         await asyncio.sleep(config.GOOGLE_CALENDAR_UPDATE_INTERVAL)
+
+
+def _project_path(value: str) -> Path:
+    """Expand ~ and resolve relative paths against the project root."""
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def get_photo_library() -> PhotoLibrary:
+    """Get or create the photo library (local folder and/or shared Drive folder)."""
+    global _photo_library
+    if _photo_library is None:
+        drive = None
+        if config.PHOTOS_DRIVE_FOLDER_ID:
+            drive = DrivePhotoSource(
+                config.PHOTOS_DRIVE_FOLDER_ID,
+                service_account_file=PROJECT_ROOT / config.GOOGLE_SERVICE_ACCOUNT_FILE,
+            )
+        _photo_library = PhotoLibrary(
+            cache_dir=_project_path(config.PHOTOS_CACHE_DIR),
+            max_edge=config.PHOTOS_MAX_EDGE,
+            local_dir=_project_path(config.PHOTOS_DIR) if config.PHOTOS_DIR else None,
+            drive=drive,
+        )
+    return _photo_library
+
+
+async def update_photo_library() -> None:
+    """
+    Background task keeping the photo tile's library in sync with its sources.
+
+    Each pass scans the folder / Drive, renders new photos into the cache one
+    at a time (they become available as soon as each one is done) and drops
+    photos that were removed.
+    """
+    library = get_photo_library()
+    logger.info("🖼️ Photo library monitoring started")
+
+    while True:
+        try:
+            await library.refresh()
+        except Exception as e:
+            logger.error(f"⚠️ Photo library error: {e}", exc_info=True)
+
+        await asyncio.sleep(config.PHOTOS_SCAN_INTERVAL)
 
 
 def _current_nhl_season() -> str:
@@ -703,10 +754,44 @@ async def get_frontend_config():
         morning_mode_start=config.MORNING_MODE_START,
         day_mode_start=config.DAY_MODE_START,
         night_mode_start=config.NIGHT_MODE_START,
-        nhl_tile_rotate_interval=config.NHL_TILE_ROTATE_INTERVAL * 1000
+        nhl_tile_rotate_interval=config.NHL_TILE_ROTATE_INTERVAL * 1000,
+        photos_tile_rotate_interval=config.PHOTOS_TILE_ROTATE_INTERVAL * 1000
     )
     logger.info(f"📋 Config API: {frontend_config.to_dict()}")
     return frontend_config.to_dict()
+
+
+@router.get("/api/photos/next")
+async def get_next_photo():
+    """
+    Next photo for the photo tile (a shuffle: every photo once before repeats).
+
+    "photo" is null while nothing is ready; "loaded" / "pending" let the tile
+    tell "starting up" and "preparing" apart from "no photos".
+    """
+    library = get_photo_library()
+    photo = library.next_photo()
+    content = {
+        "photo": {
+            **photo.to_dict(),
+            "url": f"/photos/{photo.id}.jpg",
+            "backdrop": f"/photos/{photo.id}.blur.jpg",
+        } if photo else None,
+        "loaded": library.loaded,
+        "ready": library.ready_count,
+        "pending": library.pending_count,
+    }
+    return JSONResponse(content=content, headers={"Cache-Control": "no-store"})
+
+
+@router.get("/photos/{name}")
+async def get_photo_file(name: str):
+    """Display copy or blurred backdrop of a photo. Content-addressed, so cacheable forever."""
+    path = get_photo_library().file_path(name)
+    if path is None:
+        return Response(status_code=404)
+    return FileResponse(path, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @router.websocket("/ws")

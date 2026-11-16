@@ -200,7 +200,7 @@ flowchart LR
     
     subgraph Day["☀️ Day Mode"]
         D1["08:00 to 22:00"]
-        D2["Calendars Focus"]
+        D2["Calendar + Photos + NHL"]
         D3["No Traffic Maps"]
     end
     
@@ -217,7 +217,7 @@ flowchart LR
 |------|------------|------------------|
 | **Night** | 22:00 - 05:30 | Clock only on black background |
 | **Morning** | 05:30 - 08:00 | Full dashboard with maps, calendars, weather, transport |
-| **Day** | 08:00 - 22:00 | Calendars, weather, transport (no traffic maps) |
+| **Day** | 08:00 - 22:00 | Calendar, photos, NHL, weather, transport (no traffic maps) |
 
 ---
 
@@ -233,6 +233,7 @@ The system is configured via environment variables (`.env` file):
 | **Location** | `LOCATION_LATITUDE`, `LOCATION_LONGITUDE` | Geographic position for weather |
 | **Intervals** | `WEATHER_UPDATE_INTERVAL`, `BUS_UPDATE_INTERVAL`, `NAMEDAY_UPDATE_INTERVAL` | Data refresh rates |
 | **Kiosk** | `MORNING_MODE_START`, `DAY_MODE_START`, `NIGHT_MODE_START` | Display mode times |
+| **Photos** | `PHOTOS_DIR`, `PHOTOS_DRIVE_FOLDER_ID`, `PHOTOS_TILE_ROTATE_INTERVAL` | Photo tile sources and timing |
 
 ---
 

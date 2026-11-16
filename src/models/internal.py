@@ -12,6 +12,7 @@ class FrontendConfig:
     day_mode_start: int
     night_mode_start: int
     nhl_tile_rotate_interval: int = 10000  # in milliseconds
+    photos_tile_rotate_interval: int = 20000  # in milliseconds
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -366,3 +367,17 @@ class NhlLeague:
         if not isinstance(other, NhlLeague):
             return False
         return replace(self, updated="") == replace(other, updated="")
+
+
+@dataclass
+class Photo:
+    """A photo prepared for the photo tile (see src/photo_library.py)."""
+    id: str                    # content id; also the cache file name (<id>.jpg, <id>.blur.jpg)
+    source: str                # "local" (PHOTOS_DIR) or "drive" (PHOTOS_DRIVE_FOLDER_ID)
+    album: str                 # nearest folder name, '' for photos at the top of the source
+    taken: Optional[str]       # date taken, ISO "YYYY-MM-DD", or None when unknown
+    width: int                 # size of the display copy, px
+    height: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)

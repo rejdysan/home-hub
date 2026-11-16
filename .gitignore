@@ -134,6 +134,10 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# Photo tile: originals folder and display cache (personal photos, never commit)
+/photos/
+/photo_cache/
+
 # Environments
 .env
 .envrc

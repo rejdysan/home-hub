@@ -71,6 +71,17 @@ class Config:
     # Optional override; empty means auto-derive the season from the current date (e.g. "20262027")
     NHL_SEASON: str = os.getenv("NHL_SEASON", "")
 
+    # Photo tile (random photos, day mode). Relative paths are resolved against the project root.
+    # Folder on the Pi with the originals (subfolder names become captions); empty disables it
+    PHOTOS_DIR: str = os.getenv("PHOTOS_DIR", "photos")
+    # Optional Google Drive folder ID, shared with the service account (GOOGLE_SERVICE_ACCOUNT_FILE)
+    PHOTOS_DRIVE_FOLDER_ID: str = os.getenv("PHOTOS_DRIVE_FOLDER_ID", "")
+    # Display-sized copies the tile actually loads (originals are never sent to the browser)
+    PHOTOS_CACHE_DIR: str = os.getenv("PHOTOS_CACHE_DIR", "photo_cache")
+    PHOTOS_MAX_EDGE: int = int(os.getenv("PHOTOS_MAX_EDGE", "1600"))  # px, long edge of the copies
+    PHOTOS_SCAN_INTERVAL: int = int(os.getenv("PHOTOS_SCAN_INTERVAL", "900"))  # 15 minutes
+    PHOTOS_TILE_ROTATE_INTERVAL: int = int(os.getenv("PHOTOS_TILE_ROTATE_INTERVAL", "20"))  # seconds per photo
+
     # MQTT Throttle
     MQTT_SAVE_THROTTLE: int = int(os.getenv("MQTT_SAVE_THROTTLE", "5"))  # 5 seconds
 

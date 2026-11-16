@@ -118,7 +118,12 @@ const ElementId = Object.freeze({
 
     // Calendar
     CALENDAR_CONTAINER: 'calendar-container',
-    CALENDAR_UPDATED: 'calendar-updated'
+    CALENDAR_UPDATED: 'calendar-updated',
+
+    // Photo tile
+    PHOTOS_RECT: 'photos-rect',
+    PHOTO_STAGE: 'photo-stage',
+    PHOTO_STATUS: 'photo-status'
 });
 
 // ============================================================================
@@ -237,7 +242,8 @@ const Interval = Object.freeze({
     WEBSOCKET_RECONNECT: 2000,
     DEFAULT_MAP_REFRESH: 60000,
     DEFAULT_CALENDAR_REFRESH: 3000000000,
-    DEFAULT_NHL_ROTATE: 10000
+    DEFAULT_NHL_ROTATE: 10000,
+    DEFAULT_PHOTOS_ROTATE: 20000
 });
 
 // ============================================================================
@@ -258,6 +264,7 @@ const DefaultConfig = Object.freeze({
 // ============================================================================
 const ApiEndpoint = Object.freeze({
     CONFIG: '/api/config',
+    PHOTOS_NEXT: '/api/photos/next',
     WEBSOCKET: '/ws'
 });
 
@@ -281,6 +288,7 @@ const Selector = Object.freeze({
     BOTTOM_CONTAINER: '.bottom-container',
     MAP_RECTS: '.top-container .rect:nth-child(1), .top-container .rect:nth-child(2)',
     NHL_RECT: '.top-container .rect.nhl-rect',
+    PHOTOS_RECT: '.top-container .rect.photos-rect',
     TODOIST_RECT: '.top-container .rect.todoist-rect',
     CLOCK_RECT: '.bottom-container .rect.bottom-left',
     OTHER_BOTTOM_RECTS: '.bottom-container .rect:not(.bottom-left)',

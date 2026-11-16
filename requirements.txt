@@ -18,6 +18,10 @@ httpx
 google-auth
 google-api-python-client
 
+# Photo tile: resizing photos into the display cache (+ iPhone HEIC support)
+Pillow
+pillow-heif
+
 # Note: Pin versions to ensure reproducible builds
 # Update periodically for security patches
 # Test on Raspberry Pi before updating production

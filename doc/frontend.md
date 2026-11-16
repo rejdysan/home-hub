@@ -65,6 +65,7 @@ flowchart TB
 | `constants.js` | Enums, element IDs, CSS classes, config values |
 | `clock.js` | Real-time clock display, date formatting |
 | `iframe.js` | Google Maps and Calendar iframe refresh |
+| `photos.js` | Photo tile: loads the next photo in the background, then crossfades (day mode) |
 | `weather.js` | Weather icon mapping, dynamic backgrounds |
 | `transport.js` | Bus departure list rendering |
 | `updates.js` | DOM updates for all data types |
@@ -152,7 +153,7 @@ flowchart TB
     end
 
     subgraph DayDetails["Day 08:00-22:00"]
-        D1["Calendars Expanded"]
+        D1["Calendar + Photos + NHL"]
         D2["Maps Hidden"]
         D3["Weather + Transport"]
     end
@@ -171,7 +172,7 @@ flowchart TB
 | Mode | Time Range | Visible Elements |
 |------|------------|------------------|
 | **Morning** | 05:30 - 08:00 | Everything |
-| **Day** | 08:00 - 22:00 | Calendars, Weather, Transport, Clock |
+| **Day** | 08:00 - 22:00 | Calendar, Photos, NHL, Weather, Transport, Clock |
 | **Night** | 22:00 - 05:30 | Clock only |
 
 ### CSS Classes Applied
