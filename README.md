@@ -18,6 +18,7 @@ A real-time IoT dashboard for Raspberry Pi 5, displaying sensor data, weather, p
 - **Weather** - Current conditions & 7-day forecast via Open-Meteo API
 - **Transport** - Live Prague bus departures via Golemio API
 - **System Monitor** - CPU, RAM, Disk, Temperature metrics
+- **Photos** - Random family photos from a folder on the Pi and/or a shared Google Drive folder, crossfading (day mode)
 - **Kiosk Modes** - Automatic day/night display switching
 - **Real-time Updates** - WebSocket-based instant UI updates
 
@@ -79,6 +80,7 @@ Key environment variables:
 | `GOLEMIO_API_KEY`              | Prague transport API key |
 | `LOCATION_LATITUDE/LONGITUDE`  | Weather location         |
 | `MORNING/DAY/NIGHT_MODE_START` | Kiosk mode times         |
+| `PHOTOS_DIR` / `PHOTOS_DRIVE_FOLDER_ID` | Photo tile sources ([setup](./doc/deployment.md#6-photo-tile)) |
 
 See [Backend Documentation](./doc/backend.md) for full configuration reference.
 

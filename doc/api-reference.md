@@ -36,7 +36,9 @@ Returns frontend configuration values.
   "google_calendar_update_interval": 300000,
   "morning_mode_start": "05:30",
   "day_mode_start": "08:00",
-  "night_mode_start": "22:00"
+  "night_mode_start": "22:00",
+  "nhl_tile_rotate_interval": 10000,
+  "photos_tile_rotate_interval": 20000
 }
 ```
 
@@ -47,6 +49,51 @@ Returns frontend configuration values.
 | `morning_mode_start` | `string` | Morning kiosk mode start time (HH:MM) |
 | `day_mode_start` | `string` | Day kiosk mode start time (HH:MM) |
 | `night_mode_start` | `string` | Night kiosk mode start time (HH:MM) |
+| `nhl_tile_rotate_interval` | `int` | Seconds per NHL view (milliseconds) |
+| `photos_tile_rotate_interval` | `int` | Seconds per photo (milliseconds) |
+
+---
+
+### GET `/api/photos/next`
+
+Next photo for the photo tile. A server-side shuffle: every photo once before any repeats.
+
+**Response:** `application/json` (`Cache-Control: no-store`)
+
+```json
+{
+  "photo": {
+    "id": "3c81de53592c058523f6",
+    "source": "drive",
+    "album": "Croatia 2023",
+    "taken": "2023-07-16",
+    "width": 1067,
+    "height": 1600,
+    "url": "/photos/3c81de53592c058523f6.jpg",
+    "backdrop": "/photos/3c81de53592c058523f6.blur.jpg"
+  },
+  "loaded": true,
+  "ready": 412,
+  "pending": 0
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `photo` | `object \| null` | `null` while no photo is ready |
+| `photo.album` | `string` | Nearest folder name (`""` at the top of the source) |
+| `photo.taken` | `string \| null` | Date taken (`YYYY-MM-DD`) |
+| `photo.width` / `height` | `int` | Size of the display copy, px |
+| `loaded` | `bool` | `false` until the library has started |
+| `ready` / `pending` | `int` | Photos ready to show / still being prepared |
+
+---
+
+### GET `/photos/{id}.jpg` and `/photos/{id}.blur.jpg`
+
+Display copy (long edge ≤ `PHOTOS_MAX_EDGE`) and the 40 px blurred backdrop of a photo.
+Content-addressed, so served with `Cache-Control: public, max-age=31536000, immutable`.
+Unknown names return `404`.
 
 ---
 

@@ -11,6 +11,7 @@
  * - updates.js: UI update functions
  * - websocket.js: WebSocket connection handling
  * - nhl.js: Rotating NHL tile
+ * - photos.js: Photo tile (random photos, crossfading)
  * - kiosk.js: Kiosk mode management
  */
 
@@ -36,6 +37,9 @@ function initializeApp() {
 
     // Start the NHL tile rotation (interval refined once config arrives)
     NhlTile.init(Interval.DEFAULT_NHL_ROTATE);
+
+    // Start loading the first photo (shown when day mode makes the tile visible)
+    PhotoTile.init(Interval.DEFAULT_PHOTOS_ROTATE);
 
     // Start WebSocket connection
     window.connect();
@@ -81,6 +85,9 @@ function fetchConfigAndSetupIntervals() {
 
             // NHL tile: seconds per view
             if (cfg.nhl_tile_rotate_interval) NhlTile.setRotateInterval(cfg.nhl_tile_rotate_interval);
+
+            // Photo tile: seconds per photo
+            if (cfg.photos_tile_rotate_interval) PhotoTile.setRotateInterval(cfg.photos_tile_rotate_interval);
 
             // Set up map refresh interval
             setInterval(window.refreshMaps, cfg.google_maps_update_interval);

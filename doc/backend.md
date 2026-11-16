@@ -83,6 +83,41 @@ All configuration is managed through environment variables with sensible default
 | `MORNING_MODE_START` | `05:30` | Morning mode start time |
 | `DAY_MODE_START` | `08:00` | Day mode start time |
 | `NIGHT_MODE_START` | `22:00` | Night mode start time |
+| **Photo Tile** | | |
+| `PHOTOS_DIR` | `photos` | Folder with photos on the Pi (empty disables it) |
+| `PHOTOS_DRIVE_FOLDER_ID` | *(empty)* | Google Drive folder shared with the service account (optional) |
+| `PHOTOS_CACHE_DIR` | `photo_cache` | Display-sized copies the tile loads |
+| `PHOTOS_MAX_EDGE` | `1600` | Long edge of the copies, px |
+| `PHOTOS_SCAN_INTERVAL` | `900` | How often to look for new / removed photos (15 min) |
+| `PHOTOS_TILE_ROTATE_INTERVAL` | `20` | Seconds per photo |
+
+---
+
+## Photo Library
+
+`src/photo_library.py` feeds the photo tile. The browser never loads original
+photos (3-15 MB each, slow to decode on the Pi). Instead, every photo is
+rendered once in the background into a display-sized copy, which is all the tile loads.
+
+```mermaid
+flowchart LR
+    DIR["📁 PHOTOS_DIR"] --> SCAN["Scan every 15 min"]
+    DRIVE["☁️ Drive folder"] --> SCAN
+    SCAN -->|new photo| RENDER["Render one at a time<br/>(worker thread)"]
+    RENDER --> CACHE["📦 PHOTOS_CACHE_DIR<br/>id.jpg ≤1600 px · id.blur.jpg 40 px<br/>manifest.json"]
+    CACHE -->|/photos/id.jpg| TILE["🖼️ Photo tile"]
+```
+
+- **Render:** JPEG draft decoding (libjpeg scales down while decoding), EXIF
+  rotation applied, color profile kept, EXIF/GPS stripped, HEIC via `pillow-heif`.
+- **Ids:** a hash of source + path/Drive id + version (mtime+size or Drive md5) +
+  render settings. Edited photos and a changed `PHOTOS_MAX_EDGE` re-render automatically.
+- **Sync:** photos removed from a source lose their cache files. A source that
+  fails to scan (Drive offline, folder not mounted) keeps its photos.
+- **Drive:** originals are streamed into memory, rendered and dropped; only the
+  copies are stored on the Pi.
+- **Order:** a shuffle; every photo once before any repeats. New photos join the current round.
+- **Captions:** nearest folder name + date taken (EXIF, Drive metadata, or a date in the file name).
 
 ---
 

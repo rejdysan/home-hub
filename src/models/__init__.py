@@ -81,6 +81,7 @@ from .internal import (
     NhlBracketSeries,
     NhlBracket,
     NhlLeague,
+    Photo,
 )
 
 # WebSocket message models
@@ -165,6 +166,7 @@ __all__ = [
     "NhlBracketSeries",
     "NhlBracket",
     "NhlLeague",
+    "Photo",
     # WebSocket
     "BaseWebSocketMessage",
     "TodoistMessage",

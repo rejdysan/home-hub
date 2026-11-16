@@ -247,6 +247,61 @@ chmod +x /home/pi/HomeHub/start-kiosk.sh
 
 ---
 
+### 6. Photo Tile
+
+The photo tile (day mode, between the calendar and the NHL tile) shows random
+photos. It reads them from a folder on the Pi, a Google Drive folder, or both.
+Either way, the Pi makes a small display copy of each photo (about 300 KB,
+1600 px) in `photo_cache/`, and the screen only ever loads those. This keeps
+photo changes smooth and keeps them working without internet.
+
+Python packages: `Pillow` and `pillow-heif` (iPhone HEIC photos) come with
+`pip install -r requirements.txt`.
+
+#### Option A: Google Drive folder (add photos from any phone or computer)
+
+1. In Google Drive, create a folder (e.g. **Home Hub photos**) and put the
+   photos in it. Subfolders are fine; their names become captions.
+2. Share the folder with the service account's e-mail (`client_email` in
+   `google_service_account.json`, the same account the calendars use) as **Viewer**.
+3. In [Google Cloud Console](https://console.cloud.google.com/apis/library/drive.googleapis.com),
+   open the service account's project and **enable the Google Drive API**.
+4. Copy the folder ID from its URL, `https://drive.google.com/drive/folders/<FOLDER_ID>`,
+   into `.env`:
+
+   ```bash
+   PHOTOS_DRIVE_FOLDER_ID=<FOLDER_ID>
+   ```
+
+5. Restart: `sudo systemctl restart homehub`. Progress shows in
+   `journalctl -u homehub -f` (`🖼️ Preparing N new photo(s)…`).
+
+The Pi checks the folder every 15 minutes (`PHOTOS_SCAN_INTERVAL`). New photos
+are downloaded once, shrunk, and the download is discarded, so only the small
+copies are stored. Photos deleted from the folder disappear from the dashboard.
+The first sync downloads every photo once (about 4 GB for 1,000 phone photos),
+so a picked set works better than your whole archive.
+
+#### Option B: Folder on the Pi
+
+```bash
+mkdir -p ~/home-hub/photos
+# copy photos from your computer
+scp -r ~/Pictures/Croatia\ 2023 pi@<raspberry-pi-ip>:~/home-hub/photos/
+```
+
+Use `PHOTOS_DIR` to point at another folder (e.g. a USB disk or NAS mount).
+
+#### Notes
+
+- **Google Photos** can't be used as a source: since March 2025, its API only
+  gives apps access to photos they uploaded themselves.
+- Supported: JPEG, PNG, WebP, TIFF, BMP, HEIC/HEIF. Videos and GIFs are skipped.
+- Removing the cache is safe: `rm -rf ~/home-hub/photo_cache` (everything is
+  rendered again on the next start).
+
+---
+
 ## IoT Sensor Deployment
 
 ### 1. Flash MicroPython

@@ -13,7 +13,7 @@ from src.config import config
 from src.logger import logger
 from src.database import init_db, close_all_connections
 from src.mqtt_handler import setup_mqtt, set_sensor_callback, set_status_change_callback, get_sensor_status
-from src.routes import router, update_weather_data, update_nameday_data, update_bus_data, check_sensor_status, update_todoist_data, update_calendar_data, update_nhl_data, close_http_client, cleanup_database_daily
+from src.routes import router, update_weather_data, update_nameday_data, update_bus_data, check_sensor_status, update_todoist_data, update_calendar_data, update_nhl_data, update_photo_library, close_http_client, cleanup_database_daily
 from src.system_info import monitor_system, set_broadcast_func
 from src.websocket_manager import manager
 from src import sensor_cache
@@ -204,6 +204,7 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(update_todoist_data(), name="todoist_update"),
                 asyncio.create_task(update_calendar_data(), name="calendar_update"),
                 asyncio.create_task(update_nhl_data(), name="nhl_update"),
+                asyncio.create_task(update_photo_library(), name="photo_library_update"),
                 asyncio.create_task(cleanup_database_daily(), name="database_cleanup")
             ]
             logger.info("✅ Background tasks started")
@@ -281,14 +282,20 @@ app = FastAPI(
 )
 
 
-# Add no-cache middleware for static files
+# Add no-cache middleware for the dashboard page and static files
 class NoCacheMiddleware(BaseHTTPMiddleware):
-    """Disable caching for static files to ensure browser always fetches latest version."""
+    """
+    Disable caching for the dashboard page and static files so the kiosk browser
+    always fetches the latest version after an update.
+
+    The page itself ("/") must be included: without a Cache-Control header the
+    browser may keep a stale index.html while loading fresh JS/CSS, leaving the
+    old markup paired with new scripts.
+    """
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Only apply no-cache headers to static files
-        if request.url.path.startswith("/static/"):
+        if request.url.path == "/" or request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"

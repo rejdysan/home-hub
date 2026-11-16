@@ -84,6 +84,27 @@
             </div>
         </div>
 
+        <!-- Photo tile (day mode, between calendar and NHL): random photos, crossfading -->
+        <div class="rect photos-rect" id="photos-rect">
+            <div class="photo-stage" id="photo-stage">
+                <div class="photo-layer">
+                    <img class="photo-backdrop" alt="">
+                    <img class="photo-img" alt="">
+                    <div class="photo-caption"></div>
+                </div>
+                <div class="photo-layer">
+                    <img class="photo-backdrop" alt="">
+                    <img class="photo-img" alt="">
+                    <div class="photo-caption"></div>
+                </div>
+            </div>
+            <div class="photo-status" id="photo-status">
+                <i data-lucide="images"></i>
+                <span class="photo-status-title">Loading photos…</span>
+                <span class="photo-status-sub"></span>
+            </div>
+        </div>
+
         <!-- NHL tile (day mode): rotating scores / standings / playoff bracket / leaders -->
         <div class="rect nhl-rect" id="nhl-rect">
             <div class="nhl-panel">
@@ -283,6 +304,7 @@
 <script src="/static/js/transport.js"></script>
 <script src="/static/js/todoist.js"></script>
 <script src="/static/js/nhl.js"></script>
+<script src="/static/js/photos.js"></script>
 <script src="/static/js/calendar.js"></script>
 <script src="/static/js/updates.js"></script>
 <script src="/static/js/websocket.js"></script>

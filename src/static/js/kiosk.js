@@ -48,7 +48,7 @@ function getCurrentMode() {
  * Apply kiosk mode based on current time
  * Adjusts visibility of UI elements based on mode:
  *   - morning: traffic maps | calendar | todoist
- *   - day:     calendar | NHL tile
+ *   - day:     calendar | photos | NHL tile
  *   - night:   clock only
  */
 function applyKioskMode() {
@@ -64,6 +64,7 @@ function applyKioskMode() {
     const mapRects = document.querySelectorAll(Selector.MAP_RECTS);
     const todoistRect = document.querySelector(Selector.TODOIST_RECT);
     const nhlRect = document.querySelector(Selector.NHL_RECT);
+    const photosRect = document.querySelector(Selector.PHOTOS_RECT);
     const clockRect = document.querySelector(Selector.CLOCK_RECT);
     const otherBottomRects = document.querySelectorAll(Selector.OTHER_BOTTOM_RECTS);
 
@@ -80,6 +81,8 @@ function applyKioskMode() {
     if (todoistRect) todoistRect.style.display = '';
     // NHL tile is day-only; .nhl-rect is display:none by default
     if (nhlRect) nhlRect.style.display = 'none';
+    // Photo tile is day-only too; .photos-rect is display:none by default
+    if (photosRect) photosRect.style.display = 'none';
     otherBottomRects.forEach(el => el.style.display = '');
     if (clockRect) clockRect.classList.remove(CssClass.NIGHT_MODE_CLOCK);
 
@@ -87,15 +90,17 @@ function applyKioskMode() {
         // Maps + calendar + todoist fill the 4-column row (CSS default)
         console.log('🌅 Morning mode: Full dashboard');
     } else if (mode === KioskMode.DAY) {
-        // Calendar + NHL tile share the row
-        console.log('☀️ Day mode: Calendar + NHL');
+        // Calendar + photos + NHL tile share the row
+        console.log('☀️ Day mode: Calendar + Photos + NHL');
         mapRects.forEach(el => el.style.display = 'none');
         if (todoistRect) todoistRect.style.display = 'none';
-        // explicit value — '' would fall back to the .nhl-rect { display:none } default
+        // explicit values — '' would fall back to the display:none defaults of these tiles
+        if (photosRect) photosRect.style.display = 'block';
         if (nhlRect) nhlRect.style.display = 'block';
-        if (topContainer) topContainer.style.gridTemplateColumns = '1fr 1fr';
-        // Render the current NHL view right away instead of waiting for the next rotation
+        if (topContainer) topContainer.style.gridTemplateColumns = '1fr 1fr 1fr';
+        // Render the current NHL view and a fresh photo right away instead of waiting for the next rotation
         if (window.NhlTile) window.NhlTile.onShow();
+        if (window.PhotoTile) window.PhotoTile.onShow();
     } else if (mode === KioskMode.NIGHT) {
         // Show only clock on black background
         console.log('🌙 Night mode: Clock only');
